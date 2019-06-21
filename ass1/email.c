@@ -51,7 +51,11 @@ bool CheckEmail(char **email, char **_local, char **_domain){
      */
     reti = regcomp(&regex, "^([^@]+)@([^@]+)$", REG_EXTENDED);
     if ( reti != 0 ) {
-        fprintf(stderr, "Could not compile regex\n");
+        ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("can not create regular expression: ^([^@]+)@([^@]+)$\n")
+                 )
+                );
         exit(1);
     }
 
@@ -61,11 +65,19 @@ bool CheckEmail(char **email, char **_local, char **_domain){
         puts("Match\n");
     }
     else if (reti == REG_NOMATCH) {
-        puts("No match\n");
+        ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("invalid email adddress, \"%s\" ", email[0])
+                 )
+                );
     }
     else {
         regerror(reti, &regex, msgbuf, sizeof(msgbuf));
-        fprintf(stderr, "Regex match failed: %s\n", msgbuf);
+        ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("special error\n, \"%s\" ", email[0])
+                 )
+                );
         exit(1);
     }
 
@@ -96,7 +108,12 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     temp_copy_email = temp_copy_email + groupArray[2].rm_so;
     strcpy( &domain[0], temp_copy_email );
     //
-
+    // debug
+    ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("special error\n, \"%s\" ", email[0])
+                 )
+                );
     printf("local is %s, domain is %s\n", local, domain);
 
     strcpy(_local[0], &local[0]);
