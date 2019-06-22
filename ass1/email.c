@@ -12,23 +12,191 @@
 #include "fmgr.h"
 #include "libpq/pqformat.h"		/* needed for send/recv functions */
 
+#include <ctype.h>
 #include <regex.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+
+#define MAXWORDLENGTH  128 + 1
+#define MAXWORD  ( 128 / 2 ) + 1
+#define LOCAL_CHEKC_CODE  1
+#define DOMAIN_CHEKC_CODE  2
 bool CheckEmail(char **email, char **_local, char **_domain);
+char **CheckParts(char *parts, int *size, int which_part);
+void destroy2D(char **target, int size) ;
+char *ExtracWord(char *parts, int begin, int end);
 
 PG_MODULE_MAGIC;
 
-typedef struct EmailAddr 
+typedef struct EmailAddr
 {
-    char local[ 128 + 1 ];
-    char domain[ 128 + 1 ]; 
+    char *local;
+    char *domain;
 } EmailAddr;
 
+char *ExtracWord(char *parts, int begin, int end) {
+  // + 1 is because if begin is 0, end is 3, then total length is actually 4
+  // but 3 - 0 = 3, so need + 1 
+  // another is for '\0'
+  char *result = calloc( ( end - begin + 1 + 1 ), sizeof(char)  );
+  if( result == NULL ) {
+     ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("not enough for calloc -> result\n")
+                 )
+                );
+      exit(1);
+  }
+  int start = 0;
+  int i = begin;
+  for( i = begin ; i <= end ; i++ ) {
+    result[start] = parts[i];
+    start++;
+  }
+  return result;
+}
+
+void destroy2D(char **target, int size) {
+  int i = 0;
+  for( i = 0 ; i < size ; i++ ) {
+      char *temp = target[ i ];
+      free( temp );
+  }
+  free(target);
+}
+
+/**
+ * for "which_part", if it is 1, then it is local, otherwise 2
+ */
+char **CheckParts(char *parts, int *size, int which_part) {
+
+  if( isalpha( parts[0] ) == 0  ) {
+    ereport(ERROR,
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                errmsg("start of words is not alpha %s\n", parts)
+                )
+                );
+    exit(1);
+  }
+  unsigned int length = strlen(parts);
+  /**
+   * need to consider if last bit is '\0'`
+   * check
+   */
+  if( parts[length - 1 ] == '\0' ) {
+    ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("should never happen %s\n", parts)
+                 )
+                );
+    exit(1);
+    length = length - 1;
+  }
+  if( isalpha( parts[ length - 1 ] ) == 0 && isdigit( ( parts[ length - 1 ] ) ) == 0 ) {
+    ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("last letter is not correct, should either alphet or digit, but %c\n",parts[ length - 1 ])
+                 )
+                );
+    exit(1);
+  }
+  // create 2d char which is 1d string
+  char **words = malloc( sizeof( char * ) * ( MAXWORD ) );
+  if( words == NULL ) {
+      ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("not enough for malloc -> words\n")
+                 )
+                );
+      exit(1);
+  }
+  
+  // char words[ MAXWORD ] [ MAXWORDLENGTH ];
+
+
+  int how_many = 0;
+  char delim = '.';
+  // both including
+  int last_end = -1;
+  int start = 0;
+  int end = 0;
+  /*  01234567
+   *  abc..abc
+   *  for exmaple, when i == 4 and it is delimeter
+   *  last_end shoud be 2,
+   *  then check if is the second consecutive delimeter
+  */
+  int i = 0;
+  for( i = 0 ; i < length ; i++ ) {
+      // check if this character is leter or digit or hyphens('-')
+      if( isalpha( parts[i] ) == 0 && isdigit( ( parts[i] ) ) == 0 && parts[i] != '-' && parts[i] != '.' ) {
+          ereport(ERROR,
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                errmsg("This character is not alphet or digit or hyphens >>%c\n", parts[i])
+                 )
+                );
+          exit(1);
+      }
+      if( parts[i] == delim ) {
+      // check if meets two consecutive delimeter
+        if( last_end != -1 && last_end + 1 == i - 1 ) {
+          ereport(ERROR,
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                errmsg("invalid email parts, two consecutive dot\n")
+                 )
+                );
+          exit(1);
+        }else {
+          end = i - 1;
+          last_end = end;
+          int temp_length = end - start + 1 + 1;
+          char *temp = ExtracWord(parts, start, end);
+          words[how_many] = temp;
+          // create "end of string"
+          words[how_many][ temp_length - 1 ] = '\0';
+          how_many++;
+        }
+        // if next one is still delimeter, this for loop should just end and program stops
+        start = i + 1;
+    }
+  }
+  // extract last word
+  end = length - 1;
+  char *temp = ExtracWord(parts, start, end);
+  words[how_many] = temp;
+  int temp_length = end - start + 1 + 1;
+  words[how_many][ temp_length - 1 ] = '\0';
+  how_many++;
+
+  if( which_part == 1 ) {
+    if( how_many < 1 ) {
+      ereport(ERROR,
+            (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+            errmsg("local part needs at least one part, but currently %d parts\n", how_many)
+              )
+            );
+      exit(1);
+    }
+  }
+  if( which_part == 2  ) {
+    if( how_many < 2 ) {
+      ereport(ERROR,
+            (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+            errmsg("domain part needs at least two parts, but currently %d parts\n", how_many)
+              )
+            );
+      exit(1);
+    }
+  }
+
+  *size = how_many;
+  return words;
+}
 
 /**
  * parse string by reference
- * do not modified varaible "email" since it is read-only 
+ * do not modified varaible "email" since it is read-only
  */
 bool CheckEmail(char **email, char **_local, char **_domain){
 
@@ -62,7 +230,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     /* Execute regular expression */
     reti = regexec(&regex, email[0], maxGroups, groupArray, 0);
     if ( reti == 0 ) {
-        puts("Match\n");
+        // puts("Match\n");
     }
     else if (reti == REG_NOMATCH) {
         ereport(ERROR,
@@ -83,7 +251,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
 
     // extract local and domain
     /**
-     * the structure of regmatch_t is 
+     * the structure of regmatch_t is
      * {
      *  regoff_t 	rm_so // treat them as integer
      *  regoff_t 	rm_eo // integer
@@ -99,7 +267,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     // move to start position, it should be zero
     temp_copy_email = temp_copy_email + groupArray[1].rm_so;
     strcpy( &local[0], temp_copy_email );
-    
+
 
     temp_copy_email = email[0];
 
@@ -107,19 +275,17 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     // move to start position, it not be zero
     temp_copy_email = temp_copy_email + groupArray[2].rm_so;
     strcpy( &domain[0], temp_copy_email );
-    //
-    // debug
-    // ereport(ERROR,
-		// 		(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-		// 		 errmsg("special error\n, \"%s\" ", email[0])
-    //              )
-    //             );
-    // printf("local is %s, domain is %s\n", local, domain);
 
+    int local_size = 0;
+    int domain_size = 0;
+    char **local_parts = CheckParts( local, &local_size, LOCAL_CHEKC_CODE );
+    char **domain_parts = CheckParts( domain, &domain_size, DOMAIN_CHEKC_CODE );
+    destroy2D(local_parts, local_size);
+    destroy2D(domain_parts, domain_size);
     strcpy(_local[0], &local[0]);
     strcpy(_domain[0], &domain[0]);
     return true;
-}   	
+}
 
 /*****************************************************************************
  * Input/Output functions
@@ -131,21 +297,37 @@ Datum
 email_in(PG_FUNCTION_ARGS)
 {
 	char        *str = PG_GETARG_CSTRING(0);
-	char	    *local = (char *)malloc( sizeof(char) * ( 128 + 1 ) );
-    local[128] = '\0';
-    char	    *domain = (char *)malloc( sizeof(char) * ( 128 + 1 ) );
-    domain[128] = '\0';
-	EmailAddr    *result = (EmailAddr *) palloc(sizeof(EmailAddr));
-    // initialize
-    result -> local[128] = '\0';
-    result -> domain[128] = '\0';
-    // a series chars input, check whether it satisfy the rules
-    CheckEmail( &str, &local, &domain );
+	char	    *local = (char *)calloc( ( 128 + 1 ), sizeof(char) );
+  char	    *domain = (char *)calloc( ( 128 + 1 ), sizeof(char) );
+  // a series chars input, check whether it satisfy the rules
+  CheckEmail( &str, &local, &domain );
 
-    strcpy(result -> local, local);
-    strcpy(result -> domain, domain);
-    free(local);
-    free(domain);
+  /**
+   * after separate string, right now, 
+   * we can know the true length of input string by using strlen() with '\0'
+   * 
+   * use palloc, i do not know why, but just use palloc
+   * 
+   * strlen() will not count '\0', so you need to + 1 
+   */
+  EmailAddr    *result = (EmailAddr *) palloc( sizeof( EmailAddr ) );
+  result -> local = (char *) malloc( strlen(local) + 1 );
+  result -> domain = (char *)malloc( strlen(domain) + 1 );
+  /**
+   * shoud just be perfect exactly same space incluing '\0'
+   */
+  strcpy(result -> local, local);
+  strcpy(result -> domain, domain);
+
+  // ereport(ERROR,
+	// 			(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+	// 			 errmsg("origin locai is %s, local is %s and size is %d\n", local, result -> local, strlen(local) + 1)
+  //                )
+  //               );
+  // exit(1);
+
+  free(local);
+  free(domain);
 	PG_RETURN_POINTER(result);
 }
 
@@ -309,4 +491,3 @@ email_out(PG_FUNCTION_ARGS)
 
 // 	PG_RETURN_INT32(complex_abs_cmp_internal(a, b));
 // }
-
