@@ -1,6 +1,6 @@
 # 9315
 
-i am doing string check
+liu is doing string check
 
 if bugs says "wrong ELF class: ELFCLASS64", it means that you need to "make" in grieg.
 
