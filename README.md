@@ -28,6 +28,7 @@ If the internal representation of the data type is variable-length, the internal
 
 warning 
 in email.source
+This inequality, check if restrict and join is correct
 one possible fault is "
 CREATE OPERATOR <> (
    leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_inequality,
@@ -35,4 +36,19 @@ CREATE OPERATOR <> (
    negator = = ,
    restrict = eqsel, join = eqjoinsel
 );
+"
+
+warning
+in email.source. Check if one new operator "<>" is inserted correct
+one possible fault about btree is "
+-- now we can make the operator class
+CREATE OPERATOR CLASS complex_abs_ops
+    DEFAULT FOR TYPE complex USING btree AS
+        OPERATOR        1       < ,
+        OPERATOR        2       <= ,
+        OPERATOR        3       = ,
+        OPERATOR        4       = ,
+        OPERATOR        5       >= ,
+        OPERATOR        6       > ,
+        FUNCTION        1       complex_abs_cmp(complex, complex);
 "
