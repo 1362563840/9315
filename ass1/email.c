@@ -31,8 +31,8 @@ PG_MODULE_MAGIC;
 
 typedef struct EmailAddr
 {
-    char local[ 128 + 1 ];
-    char domain[ 128 + 1 ];
+    char *local;
+    char *domain;
 } EmailAddr;
 
 char *ExtracWord(char *parts, int begin, int end) {
@@ -272,7 +272,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     temp_copy_email = email[0];
 
     temp_copy_email[ groupArray[2].rm_eo ] = '\0';
-    // move to start position, it should be zero
+    // move to start position, it not be zero
     temp_copy_email = temp_copy_email + groupArray[2].rm_so;
     strcpy( &domain[0], temp_copy_email );
 
@@ -297,19 +297,35 @@ Datum
 email_in(PG_FUNCTION_ARGS)
 {
 	char        *str = PG_GETARG_CSTRING(0);
-	char	    *local = (char *)malloc( sizeof(char) * ( 128 + 1 ) );
-  local[128] = '\0';
-  char	    *domain = (char *)malloc( sizeof(char) * ( 128 + 1 ) );
-  domain[128] = '\0';
-	EmailAddr    *result = (EmailAddr *) palloc(sizeof(EmailAddr));
-  // initialize
-  result -> local[128] = '\0';
-  result -> domain[128] = '\0';
+	char	    *local = (char *)calloc( ( 128 + 1 ), sizeof(char) );
+  char	    *domain = (char *)calloc( ( 128 + 1 ), sizeof(char) );
   // a series chars input, check whether it satisfy the rules
   CheckEmail( &str, &local, &domain );
 
+  /**
+   * after separate string, right now, 
+   * we can know the true length of input string by using strlen() with '\0'
+   * 
+   * use palloc, i do not know why, but just use palloc
+   * 
+   * strlen() will not count '\0', so you need to + 1 
+   */
+  EmailAddr    *result = (EmailAddr *) palloc( sizeof( EmailAddr ) );
+  result -> local = (char *) malloc( strlen(local) + 1 );
+  result -> domain = (char *)malloc( strlen(domain) + 1 );
+  /**
+   * shoud just be perfect exactly same space incluing '\0'
+   */
   strcpy(result -> local, local);
   strcpy(result -> domain, domain);
+
+  // ereport(ERROR,
+	// 			(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+	// 			 errmsg("origin locai is %s, local is %s and size is %d\n", local, result -> local, strlen(local) + 1)
+  //                )
+  //               );
+  // exit(1);
+
   free(local);
   free(domain);
 	PG_RETURN_POINTER(result);
