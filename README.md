@@ -22,7 +22,17 @@ to assign value that is already freed or otherwist
 
 
 warning 
-
 "
 If the internal representation of the data type is variable-length, the internal representation must follow the standard layout for variable-length data: the first four bytes must be a char[4] field which is never accessed directly (customarily named vl_len_). You must use the SET_VARSIZE() macro to store the total size of the datum (including the length field itself) in this field and VARSIZE() to retrieve it. (These macros exist because the length field may be encoded depending on platform.)
+"
+
+warning 
+in email.source
+one possible fault is "
+CREATE OPERATOR <> (
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_inequality,
+   commutator = <> ,
+   negator = = ,
+   restrict = eqsel, join = eqjoinsel
+);
 "
