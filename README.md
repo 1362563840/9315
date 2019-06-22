@@ -2,6 +2,12 @@
 
 liu is doing string check
 
+dynamica struct string is done
+
+string check is almost finished
+
+one problem, when insert something, then exit, then reconnect databse, then "select * from table", error will shows, do not know why
+
 if bugs says "wrong ELF class: ELFCLASS64", it means that you need to "make" in grieg.
 
 if bug says "errstart was not found", it means that some includes are missing
