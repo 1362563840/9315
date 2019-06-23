@@ -424,34 +424,75 @@ email_out(PG_FUNCTION_ARGS)
 static int
 email_abs_cmp_internal(EmailAddr * a, EmailAddr * b)
 {
-  // diff in domain part
-  // if( strcmp( a -> domain, b -> domain ) < 0 ) {
-  //   return  -1;
-  // }
-  // if( strcmp( a -> domain, b -> domain ) > 0 ) {
-  //   return  1;
-  // }
+  char *a_local = ( char * )palloc( a -> first_end );
+  char *a_domain = ( char * )palloc( a -> second_end - a -> first_end );
+  int i = 0;
+  for( i = 0 ; i < a -> first_end ; i++ ) {
+    a_local[ i ] = a -> all[ i ];
+  }
+  i = 0;
+  int j = 0;
+  for( i = a -> first_end ; i < a -> second_end ; i++ ) {
+    a_domain[ j ] = a -> all[ i ];
+    j++;
+  }
 
-  //  // diff in local part
-	// if( strcmp( a -> local, b -> local ) < 0 ) {
-  //   return  -1;
-  // }
-  // if( strcmp( a -> local, b -> local ) > 0 ) {
-  //   return 1;
-  // }
+  char *b_local = ( char * )palloc( b -> first_end );
+  char *b_domain = ( char * )palloc( b -> second_end - b -> first_end );
+  i = 0;
+  for( i = 0 ; i < b -> first_end ; i++ ) {
+    b_local[ i ] = b -> all[ i ];
+  }
+  i = 0;
+  j = 0;
+  for( i = b -> first_end ; i < b -> second_end ; i++ ) {
+    b_domain[ j ] = b -> all[ i ];
+    j++;
+  }
+  
+  // diff in domain part
+  if( strcmp( a_domain, b_domain ) < 0 ) {
+    return  -1;
+  }
+  if( strcmp( a_domain, b_domain ) > 0 ) {
+    return  1;
+  }
+
+   // diff in local part
+	if( strcmp( a_local, b_local ) < 0 ) {
+    return  -1;
+  }
+  if( strcmp( a_local, b_local ) > 0 ) {
+    return  1;
+  }
   return 0;
 }
 
 static int
 email_domain_cmp_internal(EmailAddr * a, EmailAddr * b)
 {
+  char *a_domain = ( char * )palloc( a -> second_end - a -> first_end );
+  int i = 0;
+  int j = 0;
+  for( i = a -> first_end ; i < a -> second_end ; i++ ) {
+    a_domain[ j ] = a -> all[ i ];
+    j++;
+  }
+
+  char *b_domain = ( char * )palloc( b -> second_end - b -> first_end );
+  i = 0;
+  j = 0;
+  for( i = b -> first_end ; i < b -> second_end ; i++ ) {
+    b_domain[ j ] = b -> all[ i ];
+    j++;
+  }
   // diff in domain part
-  // if( strcmp( a -> domain, b -> domain ) < 0 ) {
-  //   return  -1;
-  // }
-  // if( strcmp( a -> domain, b -> domain ) > 0 ) {
-  //   return  1;
-  // }
+  if( strcmp( a_domain, b_domain ) < 0 ) {
+    return  -1;
+  }
+  if( strcmp( a_domain, b_domain ) > 0 ) {
+    return  1;
+  }
   return 0;
 }
 
