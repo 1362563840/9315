@@ -29,10 +29,15 @@ char *ExtracWord(char *parts, int begin, int end);
 
 PG_MODULE_MAGIC;
 
+/**
+ * first end includes the '\0' for local
+ * second end includes the '\0' for domain
+ */
 typedef struct EmailAddr
 {
-    char *local;
-    char *domain;
+    int first_end;
+    int second_end;
+    char all[];
 } EmailAddr;
 
 char *ExtracWord(char *parts, int begin, int end) {
@@ -310,9 +315,11 @@ email_in(PG_FUNCTION_ARGS)
    * 
    * strlen() will not count '\0', so you need to + 1 
    */
-  EmailAddr    *result = (EmailAddr *) palloc( sizeof( EmailAddr ) );
-  result -> local = (char *)calloc( strlen(local) + 1 , 1 );
-  result -> domain = (char *)calloc( strlen(domain) + 1, 1 );
+  EmailAddr    *result = (EmailAddr *) palloc( sizeof( EmailAddr )
+                                        + ( strlen(local) + 1 ) 
+                                        + ( strlen(domain) + 1 ) );
+  // result -> local = (char *)calloc( strlen(local) + 1 , 1 );
+  // result -> domain = (char *)calloc( strlen(domain) + 1, 1 );
   /**
    * shoud just be perfect exactly same space incluing '\0'
    */
@@ -321,29 +328,38 @@ email_in(PG_FUNCTION_ARGS)
     local[i] = tolower(local[i]);
   }
   i = 0;
-  for( i = 0 ; i < strlen(local) + 1 ; i++ ) {
+  for( i = 0 ; i < strlen(domain) + 1 ; i++ ) {
     domain[i] = tolower(domain[i]);
   }
   /**
    * the palloc block is tricky
    */
+  result -> first_end = strlen(local) + 1;
   i = 0;
-  for( i = 0 ; i < strlen(local) + 1 ; i++ ) {
-    result -> local[ i ] = local[ i ];
+  for( i = 0 ; i < result -> first_end ; i++ ) {
+    result -> all[ i ] = local[ i ];
   }
   // debug -----------------------------------------------
-  if( result -> local[ strlen(local) + 1 - 1 ] != '\0' ) {
+  if( result -> all[ result -> first_end - 1 ] != '\0' ) {
+    char temp[ result -> first_end ];
+    int temp_j = 0;
+    for( temp_j = 0 ; temp_j < result -> first_end ; temp_j++ ) {
+      temp[ temp_j ] = result -> all[ temp_j ];
+    }
     ereport(ERROR,
 				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-				 errmsg("origin local is %s, current local is %s\n", local, result -> local)
+				 errmsg("origin local is %s, current local is %s\n", local, temp)
                  )
                 );
         exit(1);
   }
   // debug -----------------------------------------------
+  result -> second_end = result -> first_end + ( strlen(domain) + 1 );
   i = 0;
-  for( i = 0 ; i < strlen(domain) + 1 ; i++ ) {
-    result -> domain[ i ] = domain[ i ];
+  int j = 0;
+  for( i = result -> first_end ; i < result -> second_end ; i++ ) {
+    result -> all[ i ] = domain[ j ];
+    j++;
   }
   // memcpy(result -> local, local, strlen(local) + 1);
   // memcpy(result -> domain, domain, strlen(domain) + 1);
@@ -366,9 +382,21 @@ Datum
 email_out(PG_FUNCTION_ARGS)
 {
 	EmailAddr    *email = (EmailAddr *) PG_GETARG_POINTER(0);
-	char	   *result;
 
-	result = psprintf("%s@%s", email->local, email->domain);
+  char *local = palloc( email -> first_end );
+  char *domain = palloc( email -> second_end - email -> first_end );
+	char	   *result;
+  int i = 0;
+  for( i = 0 ; i < email -> first_end ; i++ ) {
+    local[ i ] =  email -> all[ i ];
+  }
+  int j = 0;
+  for( i = email -> first_end ; i < email -> second_end ; i++ ) {
+    domain[ j ] =  email -> all[ i ];
+    j++;
+  }
+  
+	result = psprintf("%s@%s", local, domain);
 	PG_RETURN_CSTRING(result);
 }
 
@@ -397,20 +425,20 @@ static int
 email_abs_cmp_internal(EmailAddr * a, EmailAddr * b)
 {
   // diff in domain part
-  if( strcmp( a -> domain, b -> domain ) < 0 ) {
-    return  -1;
-  }
-  if( strcmp( a -> domain, b -> domain ) > 0 ) {
-    return  1;
-  }
+  // if( strcmp( a -> domain, b -> domain ) < 0 ) {
+  //   return  -1;
+  // }
+  // if( strcmp( a -> domain, b -> domain ) > 0 ) {
+  //   return  1;
+  // }
 
-   // diff in local part
-	if( strcmp( a -> local, b -> local ) < 0 ) {
-    return  -1;
-  }
-  if( strcmp( a -> local, b -> local ) > 0 ) {
-    return 1;
-  }
+  //  // diff in local part
+	// if( strcmp( a -> local, b -> local ) < 0 ) {
+  //   return  -1;
+  // }
+  // if( strcmp( a -> local, b -> local ) > 0 ) {
+  //   return 1;
+  // }
   return 0;
 }
 
@@ -418,12 +446,12 @@ static int
 email_domain_cmp_internal(EmailAddr * a, EmailAddr * b)
 {
   // diff in domain part
-  if( strcmp( a -> domain, b -> domain ) < 0 ) {
-    return  -1;
-  }
-  if( strcmp( a -> domain, b -> domain ) > 0 ) {
-    return  1;
-  }
+  // if( strcmp( a -> domain, b -> domain ) < 0 ) {
+  //   return  -1;
+  // }
+  // if( strcmp( a -> domain, b -> domain ) > 0 ) {
+  //   return  1;
+  // }
   return 0;
 }
 
