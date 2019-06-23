@@ -74,6 +74,10 @@ CREATE FUNCTION email_abs_ge(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
 CREATE FUNCTION email_abs_gt(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION email_abs_tilde(EmailAddr, EmailAddr) RETURNS bool
+   AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION email_abs_tilde_neg(EmailAddr, EmailAddr) RETURNS bool
+   AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
 
 
 CREATE OPERATOR < (
@@ -96,7 +100,7 @@ CREATE OPERATOR <> (
    leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_inequality,
    commutator = <> ,
    negator = = ,
-   restrict = eqsel, join = eqjoinsel
+   restrict = neqsel, join = neqjoinsel
 );
 CREATE OPERATOR >= (
    leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_ge,
@@ -107,6 +111,14 @@ CREATE OPERATOR > (
    leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_gt,
    commutator = < , negator = <= ,
    restrict = scalargtsel, join = scalargtjoinsel
+);
+CREATE OPERATOR ~ (
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_tilde,
+   commutator = ~ , negator = !~ 
+);
+CREATE OPERATOR !~ (
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_tilde_neg,
+   commutator = !~ , negator = ~ 
 );
 
 -- create the support function too

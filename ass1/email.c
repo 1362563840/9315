@@ -18,8 +18,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MAXWORDLENGTH  128 + 1
-#define MAXWORD  ( 128 / 2 ) + 1
+#define MAXWORDLENGTH  256 + 1
+#define MAXWORD  ( 256 / 2 ) + 1
 #define LOCAL_CHEKC_CODE  1
 #define DOMAIN_CHEKC_CODE  2
 bool CheckEmail(char **email, char **_local, char **_domain);
@@ -204,8 +204,8 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     int reti;
     char msgbuf[100]={};
     // char original[257];
-    char local[ 128 + 1 ]={};
-    char domain[ 128 + 1 ]={};
+    char local[ MAXWORDLENGTH ]={};
+    char domain[ MAXWORDLENGTH ]={};
 
     /**
      * for local and domain
@@ -297,8 +297,8 @@ Datum
 email_in(PG_FUNCTION_ARGS)
 {
 	char        *str = PG_GETARG_CSTRING(0);
-	char	    *local = (char *)calloc( ( 128 + 1 ), sizeof(char) );
-  char	    *domain = (char *)calloc( ( 128 + 1 ), sizeof(char) );
+	char	    *local = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
+  char	    *domain = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
   // a series chars input, check whether it satisfy the rules
   CheckEmail( &str, &local, &domain );
 
@@ -311,8 +311,8 @@ email_in(PG_FUNCTION_ARGS)
    * strlen() will not count '\0', so you need to + 1 
    */
   EmailAddr    *result = (EmailAddr *) palloc( sizeof( EmailAddr ) );
-  result -> local = (char *) malloc( strlen(local) + 1 );
-  result -> domain = (char *)malloc( strlen(domain) + 1 );
+  result -> local = (char *)calloc( strlen(local) + 1 , 1 );
+  result -> domain = (char *)calloc( strlen(domain) + 1, 1 );
   /**
    * shoud just be perfect exactly same space incluing '\0'
    */
@@ -324,8 +324,29 @@ email_in(PG_FUNCTION_ARGS)
   for( i = 0 ; i < strlen(local) + 1 ; i++ ) {
     domain[i] = tolower(domain[i]);
   }
-  strcpy(result -> local, local);
-  strcpy(result -> domain, domain);
+  /**
+   * the palloc block is tricky
+   */
+  i = 0;
+  for( i = 0 ; i < strlen(local) + 1 ; i++ ) {
+    result -> local[ i ] = local[ i ];
+  }
+  // debug -----------------------------------------------
+  if( result -> local[ strlen(local) + 1 - 1 ] != '\0' ) {
+    ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("origin local is %s, current local is %s\n", local, result -> local)
+                 )
+                );
+        exit(1);
+  }
+  // debug -----------------------------------------------
+  i = 0;
+  for( i = 0 ; i < strlen(domain) + 1 ; i++ ) {
+    result -> domain[ i ] = domain[ i ];
+  }
+  // memcpy(result -> local, local, strlen(local) + 1);
+  // memcpy(result -> domain, domain, strlen(domain) + 1);
 
   // ereport(ERROR,
 	// 			(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
@@ -375,14 +396,27 @@ email_out(PG_FUNCTION_ARGS)
 static int
 email_abs_cmp_internal(EmailAddr * a, EmailAddr * b)
 {
-  // diff in local part
+  // diff in domain part
+  if( strcmp( a -> domain, b -> domain ) < 0 ) {
+    return  -1;
+  }
+  if( strcmp( a -> domain, b -> domain ) > 0 ) {
+    return  1;
+  }
+
+   // diff in local part
 	if( strcmp( a -> local, b -> local ) < 0 ) {
     return  -1;
   }
   if( strcmp( a -> local, b -> local ) > 0 ) {
     return 1;
   }
+  return 0;
+}
 
+static int
+email_domain_cmp_internal(EmailAddr * a, EmailAddr * b)
+{
   // diff in domain part
   if( strcmp( a -> domain, b -> domain ) < 0 ) {
     return  -1;
@@ -469,4 +503,26 @@ email_abs_cmp(PG_FUNCTION_ARGS)
 	EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_INT32(email_abs_cmp_internal(a, b));
+}
+
+PG_FUNCTION_INFO_V1(email_abs_tilde);
+
+Datum
+email_abs_tilde(PG_FUNCTION_ARGS)
+{
+	EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+	EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
+
+	PG_RETURN_BOOL(email_domain_cmp_internal(a, b) == 0);
+}
+
+PG_FUNCTION_INFO_V1(email_abs_tilde_neg);
+
+Datum
+email_abs_tilde_neg(PG_FUNCTION_ARGS)
+{
+	EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+	EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
+
+	PG_RETURN_BOOL(email_domain_cmp_internal(a, b) != 0);
 }
