@@ -46,14 +46,7 @@ char *ExtracWord(char *parts, int begin, int end) {
   // another is for '\0'
   // char *result = calloc( ( end - begin + 1 + 1 ), sizeof(char)  );
   char *result = palloc( ( end - begin + 1 + 1 ) * sizeof(char)  );
-  // if( result == NULL ) {
-  //    ereport(ERROR,
-	// 			(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-	// 			 errmsg("not enough for calloc -> result\n")
-  //                )
-  //               );
-  //     exit(1);
-  // }
+
   int start = 0;
   int i = begin;
   for( i = begin ; i <= end ; i++ ) {
@@ -108,14 +101,6 @@ char **CheckParts(char *parts, int *size, int which_part) {
   }
   // create 2d char which is 1d string
   char **words = (char **)palloc( sizeof( char * ) * ( MAXWORD ) );
-  // if( words == NULL ) {
-  //     ereport(ERROR,
-	// 			(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-	// 			 errmsg("not enough for malloc -> words\n")
-  //                )
-  //               );
-  //     exit(1);
-  // }
   
   // char words[ MAXWORD ] [ MAXWORDLENGTH ];
 
@@ -239,6 +224,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     }
     else if (reti == REG_NOMATCH) {
         regfree(&regex);
+
         ereport(ERROR,
 				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
 				 errmsg("invalid email adddress, \"%s\" ", email[0])
@@ -247,6 +233,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     }
     else {
         regfree(&regex);
+
         regerror(reti, &regex, msgbuf, sizeof(msgbuf));
         ereport(ERROR,
 				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
@@ -345,21 +332,7 @@ email_in(PG_FUNCTION_ARGS)
   for( i = 0 ; i < result -> first_end ; i++ ) {
     result -> all[ i ] = local[ i ];
   }
-  // debug -----------------------------------------------
-  if( result -> all[ result -> first_end - 1 ] != '\0' ) {
-    char temp[ result -> first_end ];
-    int temp_j = 0;
-    for( temp_j = 0 ; temp_j < result -> first_end ; temp_j++ ) {
-      temp[ temp_j ] = result -> all[ temp_j ];
-    }
-    ereport(ERROR,
-				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-				 errmsg("origin local is %s, current local is %s\n", local, temp)
-                 )
-                );
-        exit(1);
-  }
-  // debug -----------------------------------------------
+ 
   result -> second_end = result -> first_end + ( strlen(domain) + 1 );
   i = 0;
   int j = 0;
@@ -367,15 +340,6 @@ email_in(PG_FUNCTION_ARGS)
     result -> all[ i ] = domain[ j ];
     j++;
   }
-  // memcpy(result -> local, local, strlen(local) + 1);
-  // memcpy(result -> domain, domain, strlen(domain) + 1);
-
-  // ereport(ERROR,
-	// 			(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-	// 			 errmsg("origin locai is %s, local is %s and size is %d\n", local, result -> local, strlen(local) + 1)
-  //                )
-  //               );
-  // exit(1);
 
   // free(local);
   // free(domain);
