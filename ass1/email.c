@@ -44,15 +44,16 @@ char *ExtracWord(char *parts, int begin, int end) {
   // + 1 is because if begin is 0, end is 3, then total length is actually 4
   // but 3 - 0 = 3, so need + 1 
   // another is for '\0'
-  char *result = calloc( ( end - begin + 1 + 1 ), sizeof(char)  );
-  if( result == NULL ) {
-     ereport(ERROR,
-				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-				 errmsg("not enough for calloc -> result\n")
-                 )
-                );
-      exit(1);
-  }
+  // char *result = calloc( ( end - begin + 1 + 1 ), sizeof(char)  );
+  char *result = palloc( ( end - begin + 1 + 1 ) * sizeof(char)  );
+  // if( result == NULL ) {
+  //    ereport(ERROR,
+	// 			(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+	// 			 errmsg("not enough for calloc -> result\n")
+  //                )
+  //               );
+  //     exit(1);
+  // }
   int start = 0;
   int i = begin;
   for( i = begin ; i <= end ; i++ ) {
@@ -65,8 +66,7 @@ char *ExtracWord(char *parts, int begin, int end) {
 void destroy2D(char **target, int size) {
   int i = 0;
   for( i = 0 ; i < size ; i++ ) {
-      char *temp = target[ i ];
-      free( temp );
+      free( target[ i ] );
   }
   free(target);
 }
@@ -107,15 +107,15 @@ char **CheckParts(char *parts, int *size, int which_part) {
     exit(1);
   }
   // create 2d char which is 1d string
-  char **words = malloc( sizeof( char * ) * ( MAXWORD ) );
-  if( words == NULL ) {
-      ereport(ERROR,
-				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-				 errmsg("not enough for malloc -> words\n")
-                 )
-                );
-      exit(1);
-  }
+  char **words = (char **)palloc( sizeof( char * ) * ( MAXWORD ) );
+  // if( words == NULL ) {
+  //     ereport(ERROR,
+	// 			(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+	// 			 errmsg("not enough for malloc -> words\n")
+  //                )
+  //               );
+  //     exit(1);
+  // }
   
   // char words[ MAXWORD ] [ MAXWORDLENGTH ];
 
@@ -238,6 +238,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
         // puts("Match\n");
     }
     else if (reti == REG_NOMATCH) {
+        regfree(&regex);
         ereport(ERROR,
 				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
 				 errmsg("invalid email adddress, \"%s\" ", email[0])
@@ -245,6 +246,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
                 );
     }
     else {
+        regfree(&regex);
         regerror(reti, &regex, msgbuf, sizeof(msgbuf));
         ereport(ERROR,
 				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
@@ -285,10 +287,14 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     int domain_size = 0;
     char **local_parts = CheckParts( local, &local_size, LOCAL_CHEKC_CODE );
     char **domain_parts = CheckParts( domain, &domain_size, DOMAIN_CHEKC_CODE );
-    destroy2D(local_parts, local_size);
-    destroy2D(domain_parts, domain_size);
+    // destroy2D(local_parts, local_size);
+    // destroy2D(domain_parts, domain_size);
     strcpy(_local[0], &local[0]);
     strcpy(_domain[0], &domain[0]);
+
+    // free memory
+    regfree(&regex);
+
     return true;
 }
 
@@ -302,8 +308,10 @@ Datum
 email_in(PG_FUNCTION_ARGS)
 {
 	char        *str = PG_GETARG_CSTRING(0);
-	char	    *local = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
-  char	    *domain = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
+	// char	    *local = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
+  // char	    *domain = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
+  char	    *local = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
+  char	    *domain = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
   // a series chars input, check whether it satisfy the rules
   CheckEmail( &str, &local, &domain );
 
@@ -318,8 +326,6 @@ email_in(PG_FUNCTION_ARGS)
   EmailAddr    *result = (EmailAddr *) palloc( sizeof( EmailAddr )
                                         + ( strlen(local) + 1 ) 
                                         + ( strlen(domain) + 1 ) );
-  // result -> local = (char *)calloc( strlen(local) + 1 , 1 );
-  // result -> domain = (char *)calloc( strlen(domain) + 1, 1 );
   /**
    * shoud just be perfect exactly same space incluing '\0'
    */
@@ -371,8 +377,8 @@ email_in(PG_FUNCTION_ARGS)
   //               );
   // exit(1);
 
-  free(local);
-  free(domain);
+  // free(local);
+  // free(domain);
 	PG_RETURN_POINTER(result);
 }
 
