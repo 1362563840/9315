@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "access/hash.h"
+
 #define MAXWORDLENGTH  256 + 1
 #define MAXWORD  ( 256 / 2 ) + 1
 #define LOCAL_CHEKC_CODE  1
@@ -70,15 +72,30 @@ void destroy2D(char **target, int size) {
 char **CheckParts(char *parts, int *size, int which_part) {
 
   if( isalpha( parts[0] ) == 0  ) {
+    if( parts[0] == '\0' ) {
+      ereport(ERROR,
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                errmsg("end string\n")
+                )
+                );
+    }
+    if( parts[0] == ' ' ) {
+      ereport(ERROR,
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                errmsg("space\n")
+                )
+                );
+    }
     ereport(ERROR,
                 (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                errmsg("start of words is not alpha %s\n", parts)
+                errmsg("start of words(\"%c\") is not alpha \"%s\"\n", parts[0], parts)
                 )
                 );
     exit(1);
   }
   unsigned int length = strlen(parts);
   /**
+   * check  check  check  check  check  check  check  
    * need to consider if last bit is '\0'`
    * check
    */
@@ -137,16 +154,43 @@ char **CheckParts(char *parts, int *size, int which_part) {
                  )
                 );
           exit(1);
-        }else {
-          end = i - 1;
-          last_end = end;
-          int temp_length = end - start + 1 + 1;
-          char *temp = ExtracWord(parts, start, end);
-          words[how_many] = temp;
-          // create "end of string"
-          words[how_many][ temp_length - 1 ] = '\0';
-          how_many++;
         }
+        /** 
+         * check the one before the delimeter
+         * because we already make sure start character is not dot,
+         * so i - 1 should be within variable "length"
+        */
+        if( parts[ i - 1 ] == '-' ) {
+          ereport(ERROR,
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                errmsg("last character of a word \"%c\" is not satisfied\n", parts[i-1] )
+                 )
+                );
+          exit(1);
+        }
+        /** 
+         * check the one after the delimeter
+         * because we already make sure last character is not dot,
+         * so i + 1 should be within variable "length"
+        */
+        if(  isalpha( parts[ i + 1 ] ) == 0 ) {
+          ereport(ERROR,
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                errmsg("start character of a word \"%c\" is not satisfied\n", parts[i+1] )
+                 )
+                );
+          exit(1);
+        }
+        
+        end = i - 1;
+        last_end = end;
+        int temp_length = end - start + 1 + 1;
+        char *temp = ExtracWord(parts, start, end);
+        words[how_many] = temp;
+        // create "end of string"
+        words[how_many][ temp_length - 1 ] = '\0';
+        how_many++;
+        
         // if next one is still delimeter, this for loop should just end and program stops
         start = i + 1;
     }
@@ -201,6 +245,11 @@ bool CheckEmail(char **email, char **_local, char **_domain){
      * for local and domain
      */
     size_t maxGroups = 3;
+    /**
+     * groupArray[0] should be exactly same with email[0]
+     * groupArray[1] should contain local part without @
+     * groupArray[2] should contain domain part without @
+     */
     regmatch_t groupArray[maxGroups];
 
     /* Compile regular expression */
@@ -230,6 +279,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
 				 errmsg("invalid email adddress, \"%s\" ", email[0])
                  )
                 );
+        exit(1);
     }
     else {
         regfree(&regex);
@@ -252,28 +302,63 @@ bool CheckEmail(char **email, char **_local, char **_domain){
      * }
      * the first one is the start of a given string, in this case "email[0]" including
      * the latter one is the end of given string, excluding
+     * 
+     * examle :
+     * when input string is "jas@cse.unsw.edu.au"
+     * 
+     * groupArray[1].rm_so = 0,    groupArray[1].rm_eo = 3
+     * groupArray[2].rm_so = 4,    groupArray[1].rm_eo = 19, where 19 is just one after the last character 'u'
      */
 
-    // make a copy of orgin -> "email[0]" since it needs modified
-    char *temp_copy_email = email[0];
-    // let the end of char[?] to be "End of string"
-    temp_copy_email[ groupArray[1].rm_eo ] = '\0';
-    // move to start position, it should be zero
-    temp_copy_email = temp_copy_email + groupArray[1].rm_so;
-    strcpy( &local[0], temp_copy_email );
+    // // make a copy of orgin -> "email[0]" since it needs modified
+    // char *temp_copy_email = email[0];
+    // // let the end of char[?] to be "End of string"
+    // temp_copy_email[ groupArray[1].rm_eo ] = '\0';
+    // // move to start position, it should be zero
+    // temp_copy_email = temp_copy_email + groupArray[1].rm_so;
+    // strcpy( &local[0], temp_copy_email );
 
+    // // reset
+    // temp_copy_email = email[0];
 
-    temp_copy_email = email[0];
+    // temp_copy_email[ groupArray[2].rm_eo ] = '\0';
+    // // move to start position, it not be zero
+    // temp_copy_email = temp_copy_email + groupArray[2].rm_so;
+    // strcpy( &domain[0], temp_copy_email );
 
-    temp_copy_email[ groupArray[2].rm_eo ] = '\0';
-    // move to start position, it not be zero
-    temp_copy_email = temp_copy_email + groupArray[2].rm_so;
-    strcpy( &domain[0], temp_copy_email );
+    if( groupArray[1].rm_eo - groupArray[1].rm_so > 256 || groupArray[2].rm_eo - groupArray[2].rm_so > 256 ) {
+      ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg(">> %d >> %d >> %d >> %d\n", groupArray[1].rm_so, groupArray[1].rm_eo, 
+                        groupArray[2].rm_so, groupArray[2].rm_eo)
+                 )
+                );
+        exit(1);
+    }
+
+    int i = 0;
+    int j = 0;
+    for( i = groupArray[1].rm_so ; i < groupArray[1].rm_eo ; i++ ) {
+      local[j] = email[0][ i ];
+      j++;
+    }
+    // before next line, the max possible of j is 255
+    local[j] = '\0';
+
+    j = 0;
+    for( i = groupArray[2].rm_so ; i < groupArray[2].rm_eo ; i++ ) {
+      domain[j] = email[0][ i ];
+      j++;
+    }
+    // before next line, the max possible of j is 255
+    domain[j] = '\0';
 
     int local_size = 0;
     int domain_size = 0;
-    char **local_parts = CheckParts( local, &local_size, LOCAL_CHEKC_CODE );
-    char **domain_parts = CheckParts( domain, &domain_size, DOMAIN_CHEKC_CODE );
+    // char **local_parts = CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
+    // char **domain_parts = CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
+    CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
+    CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
     // destroy2D(local_parts, local_size);
     // destroy2D(domain_parts, domain_size);
     strcpy(_local[0], &local[0]);
@@ -301,6 +386,16 @@ email_in(PG_FUNCTION_ARGS)
   char	    *domain = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
   // a series chars input, check whether it satisfy the rules
   CheckEmail( &str, &local, &domain );
+
+  // check if maxsize is reached
+  if( strlen(local) >= MAXWORDLENGTH || strlen(domain) >= MAXWORDLENGTH ) {
+    ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+				 errmsg("one email size is too large\n")
+                 )
+                );
+        exit(1);
+  }
 
   /**
    * after separate string, right now, 
@@ -564,4 +659,16 @@ email_abs_tilde_neg(PG_FUNCTION_ARGS)
 	EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_BOOL(email_domain_cmp_internal(a, b) != 0);
+}
+
+PG_FUNCTION_INFO_V1(email_address_abs_hash);
+
+Datum
+email_address_abs_hash(PG_FUNCTION_ARGS)
+{
+	EmailAddr *a = (EmailAddr *) PG_GETARG_POINTER(0);
+	;
+//	int hash = DatumGetUInt32(hash_any((const unsigned char * )a->full_address, len));
+
+	PG_RETURN_INT32(DatumGetUInt32(hash_any((const unsigned char * )a->all, a->second_end)));
 }

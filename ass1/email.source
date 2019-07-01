@@ -94,7 +94,7 @@ CREATE OPERATOR = (
    leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_eq,
    commutator = = ,
    negator = <> ,
-   restrict = eqsel, join = eqjoinsel
+   restrict = eqsel, join = eqjoinsel, HASHES
 );
 CREATE OPERATOR <> (
    leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_abs_inequality,
@@ -125,6 +125,10 @@ CREATE OPERATOR !~ (
 CREATE FUNCTION email_abs_cmp(EmailAddr, EmailAddr) RETURNS int4
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
 
+-- hash warning
+CREATE FUNCTION email_address_abs_hash(EmailAddr) RETURNS int4
+   AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
+
 -- now we can make the operator class
 CREATE OPERATOR CLASS email_abs_ops
     DEFAULT FOR TYPE EmailAddr USING btree AS
@@ -134,3 +138,9 @@ CREATE OPERATOR CLASS email_abs_ops
         OPERATOR        4       >= ,
         OPERATOR        5       > ,
         FUNCTION        1       email_abs_cmp(EmailAddr, EmailAddr);
+
+-- hash warning
+CREATE OPERATOR CLASS email_address_abs_ops_hash
+    DEFAULT FOR TYPE EmailAddr USING hash AS
+        OPERATOR        1       = ,
+        FUNCTION        1       email_address_abs_hash(EmailAddr);
