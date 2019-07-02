@@ -211,6 +211,7 @@ char **CheckParts(char *parts, int *size, int which_part) {
   }
 
   *size = how_many;
+  destroy2D(words, how_many);
   return words;
 }
 
@@ -224,8 +225,8 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     int reti;
     char msgbuf[100]={};
     // char original[257];
-    char local[ MAXWORDLENGTH ]={'\0'};
-    char domain[ MAXWORDLENGTH ]={'\0'};
+    // char local[ MAXWORDLENGTH ]={'\0'};
+    // char domain[ MAXWORDLENGTH ]={'\0'};
 
     /**
      * for local and domain
@@ -323,6 +324,10 @@ bool CheckEmail(char **email, char **_local, char **_domain){
         exit(1);
     }
 
+
+    char local[ groupArray[1].rm_eo - groupArray[1].rm_so + 1 ];
+    char domain[ groupArray[2].rm_eo - groupArray[2].rm_so + 1 ];
+
     int i = 0;
     int j = 0;
     for( i = groupArray[1].rm_so ; i < groupArray[1].rm_eo ; i++ ) {
@@ -342,12 +347,16 @@ bool CheckEmail(char **email, char **_local, char **_domain){
 
     int local_size = 0;
     int domain_size = 0;
-    char **local_parts = CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
-    char **domain_parts = CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
-    // CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
-    // CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
-    destroy2D(local_parts, local_size);
-    destroy2D(domain_parts, domain_size);
+    // char **local_parts = CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
+    // char **domain_parts = CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
+    CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
+    CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
+    // destroy2D(local_parts, local_size);
+    // destroy2D(domain_parts, domain_size);
+
+    _local[0] = palloc( groupArray[1].rm_eo - groupArray[1].rm_so + 1 );
+    _domain[0] = palloc( groupArray[2].rm_eo - groupArray[2].rm_so + 1 );
+    
     strcpy(_local[0], &local[0]);
     strcpy(_domain[0], &domain[0]);
 
@@ -369,8 +378,12 @@ email_in(PG_FUNCTION_ARGS)
 	char        *str = PG_GETARG_CSTRING(0);
 	// char	    *local = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
   // char	    *domain = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
-  char	    *local = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
-  char	    *domain = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
+  // char	    *local = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
+  // char	    *domain = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
+
+  char	    *local;
+  char	    *domain;
+
   // a series chars input, check whether it satisfy the rules
   CheckEmail( &str, &local, &domain );
 
@@ -417,8 +430,8 @@ email_in(PG_FUNCTION_ARGS)
     j++;
   }
 
-  // free(local);
-  // free(domain);
+  pfree(local);
+  pfree(domain);
 	PG_RETURN_POINTER(result);
 }
 
