@@ -61,9 +61,9 @@ char *ExtracWord(char *parts, int begin, int end) {
 void destroy2D(char **target, int size) {
   int i = 0;
   for( i = 0 ; i < size ; i++ ) {
-      free( target[ i ] );
+      pfree( target[ i ] );
   }
-  free(target);
+  pfree(target);
 }
 
 /**
@@ -72,20 +72,6 @@ void destroy2D(char **target, int size) {
 char **CheckParts(char *parts, int *size, int which_part) {
 
   if( isalpha( parts[0] ) == 0  ) {
-    if( parts[0] == '\0' ) {
-      ereport(ERROR,
-                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                errmsg("end string\n")
-                )
-                );
-    }
-    if( parts[0] == ' ' ) {
-      ereport(ERROR,
-                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                errmsg("space\n")
-                )
-                );
-    }
     ereport(ERROR,
                 (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
                 errmsg("start of words(\"%c\") is not alpha \"%s\"\n", parts[0], parts)
@@ -238,8 +224,8 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     int reti;
     char msgbuf[100]={};
     // char original[257];
-    char local[ MAXWORDLENGTH ]={};
-    char domain[ MAXWORDLENGTH ]={};
+    char local[ MAXWORDLENGTH ]={'\0'};
+    char domain[ MAXWORDLENGTH ]={'\0'};
 
     /**
      * for local and domain
@@ -327,6 +313,7 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     // strcpy( &domain[0], temp_copy_email );
 
     if( groupArray[1].rm_eo - groupArray[1].rm_so > 256 || groupArray[2].rm_eo - groupArray[2].rm_so > 256 ) {
+      regfree(&regex);
       ereport(ERROR,
 				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
 				 errmsg(">> %d >> %d >> %d >> %d\n", groupArray[1].rm_so, groupArray[1].rm_eo, 
@@ -355,12 +342,12 @@ bool CheckEmail(char **email, char **_local, char **_domain){
 
     int local_size = 0;
     int domain_size = 0;
-    // char **local_parts = CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
-    // char **domain_parts = CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
-    CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
-    CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
-    // destroy2D(local_parts, local_size);
-    // destroy2D(domain_parts, domain_size);
+    char **local_parts = CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
+    char **domain_parts = CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
+    // CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
+    // CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
+    destroy2D(local_parts, local_size);
+    destroy2D(domain_parts, domain_size);
     strcpy(_local[0], &local[0]);
     strcpy(_domain[0], &domain[0]);
 
@@ -387,15 +374,8 @@ email_in(PG_FUNCTION_ARGS)
   // a series chars input, check whether it satisfy the rules
   CheckEmail( &str, &local, &domain );
 
-  // check if maxsize is reached
-  if( strlen(local) >= MAXWORDLENGTH || strlen(domain) >= MAXWORDLENGTH ) {
-    ereport(ERROR,
-				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-				 errmsg("one email size is too large\n")
-                 )
-                );
-        exit(1);
-  }
+  // check size is done already
+
 
   /**
    * after separate string, right now, 
@@ -408,6 +388,7 @@ email_in(PG_FUNCTION_ARGS)
   EmailAddr    *result = (EmailAddr *) palloc( sizeof( EmailAddr )
                                         + ( strlen(local) + 1 ) 
                                         + ( strlen(domain) + 1 ) );
+                                  
   /**
    * shoud just be perfect exactly same space incluing '\0'
    */
