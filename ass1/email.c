@@ -26,7 +26,7 @@
 #define DOMAIN_CHEKC_CODE  2
 bool CheckEmail(char **email, char **_local, char **_domain);
 void CheckParts(char *parts, int *size, int which_part);
-char *ExtracWord(char *parts, int begin, int end);
+// char *ExtracWord(char *parts, int begin, int end);
 
 PG_MODULE_MAGIC;
 
@@ -40,23 +40,7 @@ typedef struct EmailAddr
     int first_end;
     int second_end;
     char all[];
-} EmailAddr;
-
-char *ExtracWord(char *parts, int begin, int end) {
-  // + 1 is because if begin is 0, end is 3, then total length is actually 4
-  // but 3 - 0 = 3, so need + 1 
-  // another is for '\0'
-  // char *result = calloc( ( end - begin + 1 + 1 ), sizeof(char)  );
-  char *result = palloc( ( end - begin + 1 + 1 ) * sizeof(char)  );
-
-  int start = 0;
-  int i = begin;
-  for( i = begin ; i <= end ; i++ ) {
-    result[start] = parts[i];
-    start++;
-  }
-  return result;
-}
+} EmailAddr; 
 
 /**
  * for "which_part", if it is 1, then it is local, otherwise 2
@@ -94,11 +78,7 @@ void CheckParts(char *parts, int *size, int which_part) {
                 );
     exit(1);
   }
-  // create 2d char which is 1d string
-  // char **words = (char **)palloc( sizeof( char * ) * ( MAXWORD ) );
-  
-  // char words[ MAXWORD ] [ MAXWORDLENGTH ];
-
+   
 
   int how_many = 0;
   char delim = '.';
@@ -162,11 +142,6 @@ void CheckParts(char *parts, int *size, int which_part) {
         
         end = i - 1;
         last_end = end;
-        // int temp_length = end - start + 1 + 1;
-        // char *temp = ExtracWord(parts, start, end);
-        // words[how_many] = temp;
-        // create "end of string"
-        // words[how_many][ temp_length - 1 ] = '\0';
         how_many++;
         
         // if next one is still delimeter, this for loop should just end and program stops
@@ -175,10 +150,6 @@ void CheckParts(char *parts, int *size, int which_part) {
   }
   // extract last word
   end = length - 1;
-  // char *temp = ExtracWord(parts, start, end);
-  // words[how_many] = temp;
-  // int temp_length = end - start + 1 + 1;
-  // words[how_many][ temp_length - 1 ] = '\0';
   how_many++;
 
   if( which_part == 1 ) {
@@ -203,8 +174,7 @@ void CheckParts(char *parts, int *size, int which_part) {
   }
 
   *size = how_many;
-  // destroy2D(words, how_many);
-  // return words;
+  return;
 }
 
 /**
@@ -216,9 +186,6 @@ bool CheckEmail(char **email, char **_local, char **_domain){
     regex_t regex;
     int reti;
     char msgbuf[100]={};
-    // char original[257];
-    // char local[ MAXWORDLENGTH ]={'\0'};
-    // char domain[ MAXWORDLENGTH ]={'\0'};
 
     /**
      * for local and domain
@@ -289,22 +256,6 @@ bool CheckEmail(char **email, char **_local, char **_domain){
      * groupArray[2].rm_so = 4,    groupArray[1].rm_eo = 19, where 19 is just one after the last character 'u'
      */
 
-    // // make a copy of orgin -> "email[0]" since it needs modified
-    // char *temp_copy_email = email[0];
-    // // let the end of char[?] to be "End of string"
-    // temp_copy_email[ groupArray[1].rm_eo ] = '\0';
-    // // move to start position, it should be zero
-    // temp_copy_email = temp_copy_email + groupArray[1].rm_so;
-    // strcpy( &local[0], temp_copy_email );
-
-    // // reset
-    // temp_copy_email = email[0];
-
-    // temp_copy_email[ groupArray[2].rm_eo ] = '\0';
-    // // move to start position, it not be zero
-    // temp_copy_email = temp_copy_email + groupArray[2].rm_so;
-    // strcpy( &domain[0], temp_copy_email );
-
     if( groupArray[1].rm_eo - groupArray[1].rm_so > 256 || groupArray[2].rm_eo - groupArray[2].rm_so > 256 ) {
       regfree(&regex);
       ereport(ERROR,
@@ -339,12 +290,8 @@ bool CheckEmail(char **email, char **_local, char **_domain){
 
     int local_size = 0;
     int domain_size = 0;
-    // char **local_parts = CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
-    // char **domain_parts = CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
     CheckParts( &local[0], &local_size, LOCAL_CHEKC_CODE );
     CheckParts( &domain[0], &domain_size, DOMAIN_CHEKC_CODE );
-    // destroy2D(local_parts, local_size);
-    // destroy2D(domain_parts, domain_size);
 
     _local[0] = palloc( groupArray[1].rm_eo - groupArray[1].rm_so + 1 );
     _domain[0] = palloc( groupArray[2].rm_eo - groupArray[2].rm_so + 1 );
@@ -368,10 +315,6 @@ Datum
 email_in(PG_FUNCTION_ARGS)
 {
 	char        *str = PG_GETARG_CSTRING(0);
-	// char	    *local = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
-  // char	    *domain = (char *)calloc( ( MAXWORDLENGTH ), sizeof(char) );
-  // char	    *local = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
-  // char	    *domain = (char *)palloc( ( MAXWORDLENGTH ) * sizeof(char) );
 
   char	    *local;
   char	    *domain;
