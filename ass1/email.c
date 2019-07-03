@@ -25,7 +25,7 @@
 #define LOCAL_CHEKC_CODE  1
 #define DOMAIN_CHEKC_CODE  2
 bool CheckEmail(char **email, char **_local, char **_domain);
-char **CheckParts(char *parts, int *size, int which_part);
+void CheckParts(char *parts, int *size, int which_part);
 void destroy2D(char **target, int size) ;
 char *ExtracWord(char *parts, int begin, int end);
 
@@ -37,6 +37,7 @@ PG_MODULE_MAGIC;
  */
 typedef struct EmailAddr
 {
+    char vl_len_[4];
     int first_end;
     int second_end;
     char all[];
@@ -69,7 +70,7 @@ void destroy2D(char **target, int size) {
 /**
  * for "which_part", if it is 1, then it is local, otherwise 2
  */
-char **CheckParts(char *parts, int *size, int which_part) {
+void CheckParts(char *parts, int *size, int which_part) {
 
   if( isalpha( parts[0] ) == 0  ) {
     ereport(ERROR,
@@ -170,11 +171,11 @@ char **CheckParts(char *parts, int *size, int which_part) {
         
         end = i - 1;
         last_end = end;
-        int temp_length = end - start + 1 + 1;
-        char *temp = ExtracWord(parts, start, end);
-        words[how_many] = temp;
+        // int temp_length = end - start + 1 + 1;
+        // char *temp = ExtracWord(parts, start, end);
+        // words[how_many] = temp;
         // create "end of string"
-        words[how_many][ temp_length - 1 ] = '\0';
+        // words[how_many][ temp_length - 1 ] = '\0';
         how_many++;
         
         // if next one is still delimeter, this for loop should just end and program stops
@@ -183,10 +184,10 @@ char **CheckParts(char *parts, int *size, int which_part) {
   }
   // extract last word
   end = length - 1;
-  char *temp = ExtracWord(parts, start, end);
-  words[how_many] = temp;
-  int temp_length = end - start + 1 + 1;
-  words[how_many][ temp_length - 1 ] = '\0';
+  // char *temp = ExtracWord(parts, start, end);
+  // words[how_many] = temp;
+  // int temp_length = end - start + 1 + 1;
+  // words[how_many][ temp_length - 1 ] = '\0';
   how_many++;
 
   if( which_part == 1 ) {
@@ -211,8 +212,8 @@ char **CheckParts(char *parts, int *size, int which_part) {
   }
 
   *size = how_many;
-  destroy2D(words, how_many);
-  return words;
+  // destroy2D(words, how_many);
+  // return words;
 }
 
 /**
@@ -398,9 +399,12 @@ email_in(PG_FUNCTION_ARGS)
    * 
    * strlen() will not count '\0', so you need to + 1 
    */
-  EmailAddr    *result = (EmailAddr *) palloc( sizeof( EmailAddr )
+  EmailAddr    *result = (EmailAddr *) palloc( VARHDRSZ + sizeof( EmailAddr )
                                         + ( strlen(local) + 1 ) 
-                                        + ( strlen(domain) + 1 ) );
+                                        + ( strlen(domain) + 1 ) + VARHDRSZ );
+  SET_VARSIZE( result , ( VARHDRSZ + sizeof( EmailAddr )
+                                        + ( strlen(local) + 1 ) 
+                                        + ( strlen(domain) + 1 ) + VARHDRSZ ) );
                                   
   /**
    * shoud just be perfect exactly same space incluing '\0'

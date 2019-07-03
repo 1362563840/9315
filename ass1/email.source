@@ -48,10 +48,10 @@ CREATE FUNCTION email_out(EmailAddr)
 
 CREATE TYPE EmailAddr (
     -- need adjust
-    internallength = 1000,
+    internallength = VARIABLE,
     input = email_in,
     output = email_out,
-    alignment = double
+    alignment = int4
 );
 
 -----------------------------
