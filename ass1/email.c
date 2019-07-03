@@ -26,7 +26,6 @@
 #define DOMAIN_CHEKC_CODE  2
 bool CheckEmail(char **email, char **_local, char **_domain);
 void CheckParts(char *parts, int *size, int which_part);
-void destroy2D(char **target, int size) ;
 char *ExtracWord(char *parts, int begin, int end);
 
 PG_MODULE_MAGIC;
@@ -57,14 +56,6 @@ char *ExtracWord(char *parts, int begin, int end) {
     start++;
   }
   return result;
-}
-
-void destroy2D(char **target, int size) {
-  int i = 0;
-  for( i = 0 ; i < size ; i++ ) {
-      pfree( target[ i ] );
-  }
-  pfree(target);
 }
 
 /**
@@ -104,7 +95,7 @@ void CheckParts(char *parts, int *size, int which_part) {
     exit(1);
   }
   // create 2d char which is 1d string
-  char **words = (char **)palloc( sizeof( char * ) * ( MAXWORD ) );
+  // char **words = (char **)palloc( sizeof( char * ) * ( MAXWORD ) );
   
   // char words[ MAXWORD ] [ MAXWORDLENGTH ];
 
