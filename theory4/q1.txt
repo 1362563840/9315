@@ -1,0 +1,34 @@
+initially     free     free     free         NextVictim=0
+request(R0)   R0(1)    free     free     *   NextVictim=0    use first available free buffer
+request(S0)   R0(1)    S0(1)    free     *   NextVictim=0    use first available free buffer
+release(S0)   R0(1)    S0(0)    free         NextVictim=0
+request(S1)   R0(1)    S0(0)    S1(1)    *   NextVictim=0    use first available free buffer
+release(S1)   R0(1)    S0(0)    S1(0)        NextVictim=0
+request(S2)   R0(1)    S2(1)    S1(0)    *   NextVictim=2    skip pinned Buf[0], use NextVictim=1, replace Buf[1]
+release(S2)   R0(1)    S2(0)    S1(0)        NextVictim=2
+
+release(R0)   R0(0)    S2(0)    S1(0)        NextVictim=2
+
+request(R1)   R0(0)    S2(0)    R1(1)    *   NextVictim=0    use NextVictim=2, replace Buf[2], wrap NextVictim
+
+request(S0)   S0(1)    S2(0)    R1(1)    *   NextVictim=1    use NextVictim=0, replace Buf[0], wrap NextVictim
+release(S0)   S0(0)    S2(0)    R1(1)        NextVictim=1 
+
+request(S1)   S0(0)    S1(1)    R1(1)    *   NextVictim=2    use NextVictim=1, replace Buf[1], wrap NextVictim
+release(S1)   S0(0)    S1(0)    R1(1)        NextVictim=2
+
+request(S2)   R0(1)    S1(0)    S2(1)    *   NextVictim=0    use NextVictim=2, replace Buf[2], wrap NextVictim
+release(S2)   R0(1)    S1(0)    S2(0)        NextVictim=0    
+
+release(R1)   R0(0)    S1(0)    S2(0)        NextVictim=0
+
+request(R2)   R2(1)    S1(0)    S2(0)    *   NextVictim=1    use NextVictim=0, replace Buf[0], wrap NextVictim
+
+request(S0)   R2(1)    S0(1)    S2(0)    *   NextVictim=2    use NextVictim=1, replace Buf[1], wrap NextVictim
+release(S0)   R2(1)    S0(0)    S2(0)        NextVictim=2    
+
+request(S1)   R2(1)    S0(0)    S1(1)    *   NextVictim=0    use NextVictim=2, replace Buf[2], wrap NextVictim
+release(S1)   R2(1)    S0(0)    S1(0)        NextVictim=0    
+
+request(S2)   R2(1)    S2(1)    S1(0)    *   NextVictim=2    skip pinned Buf[0], use NextVictim=1, replace Buf[1]
+release(S2)   R2(1)    S2(0)    S1(0)        NextVictim=2

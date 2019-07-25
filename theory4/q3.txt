@@ -1,0 +1,9 @@
+initial         buf[0]  buf[1]      51  52
+
+request 50      50      free    
+request 75      50 1    75 2
+request 62      62 1    75 2
+request 56      62 2    56 1
+request 53      53 1    56 2
+request 51      53 2    53 1
+request 52      52 1    53 2
