@@ -65,8 +65,33 @@ void freeVals(char **vals, int nattrs)
 	for (i = 0; i < nattrs; i++) free(vals[i]);
 }
 
-// hash a tuple using the choice vector
+
 // TODO: actually use the choice vector to make the hash
+
+// hash a tuple using the choice vector
+// printf("cv[%d] is (%d,%d)\n", i, cv[i].att, cv[i].bit);
+// r->cv[i].what
+
+/**
+ * Bit manipulation wont change original val, unless you assign
+ */
+
+/**
+ * The bit extracted still stays in given _pos, not at lowest bit
+ */
+// Bits extractBit( Bits _attribute, int _pos )
+// {
+// 	return ( _attribute & ( 1 << _pos ) );
+// }
+
+/**
+ * In order to save time by avoiding assigning hash each time extract a bit
+ * Use pointer/reference
+ */
+// void pushBit( Bits *target, int _val )
+// {
+// 	*target = *target | _val;
+// }
 
 Bits tupleHash(Reln r, Tuple t)
 {
@@ -75,7 +100,29 @@ Bits tupleHash(Reln r, Tuple t)
 	char **vals = malloc(nvals*sizeof(char *));
 	assert(vals != NULL);
 	tupleVals(t, vals);
-	Bits hash = hash_any((unsigned char *)vals[0],strlen(vals[0]));
+
+	// Bits hash = hash_any((unsigned char *)vals[0],strlen(vals[0])); 
+	// Let hash contains new bits chosen by choicde vector
+	Bits hash = 0;
+	Bits hashes[ nvals ];
+	// store each attributes' hash value
+	for( int i = 0 ; i < nvals ; i++ ) {
+		hashes[ i ] =  hash_any((unsigned char *)vals[ i ],strlen(vals[ i ])); 
+	}
+
+	for( int i = 0 ; i < 32 ; i++ ) {
+		/**
+		 * Attention : if time is limited, then put two expression into one
+		 */
+		Bits extracted_bit =  ( ( hashes[ chvec(r)[i].att ] &  ( 1 <<  chvec(r)[i].bit ) ) >>  chvec(r)[i].bit ) ;
+		hash = hash | ( extracted_bit << i );
+	}
+
+	for( int i = 0 ; i < nvals ; i++ ){
+		bitsString(hashes[i],buf);
+		printf("hash(%s) = %s\n", vals[i], buf);
+	}
+
 	bitsString(hash,buf);
 	printf("hash(%s) = %s\n", vals[0], buf);
 	return hash;
