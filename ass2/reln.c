@@ -15,7 +15,16 @@
 struct RelnRep {
 	Count  nattrs; // number of attributes
 	Count  depth;  // depth of main data file
-	Offset sp;     // split pointer
+	/**
+	 * sp just points block's value,
+	 * In lecture 04 P95
+	 * 0    1   2   3   4
+	 * 000, 01, 10, 11, 100
+	 * 	 sp:^
+	 * take the last bit of a hash value, if it is 00, then it is possbile that it belongs to the last block(4)
+	 * so, need to take one more bit. Originally, it is 2 bits, then 3 bits
+	 */
+	Offset sp;     // split pointer	
     Count  npages; // number of main data pages
     Count  ntups;  // total number of tuples
 	ChVec  cv;     // choice vector
@@ -114,6 +123,12 @@ void closeRelation(Reln r)
 	free(r);
 }
 
+
+/**
+ * If a overflow A is going to be added to an existing overflow page B,
+ * then B.ovflow will record the pid of A.
+ * If need to access overflow page, then just use pid * PAGESIZE to find its position
+ */
 // insert a new tuple into a relation
 // returns index of bucket where inserted
 // - index always refers to a primary data page
@@ -141,13 +156,19 @@ PageID addToRelation(Reln r, Tuple t)
 		return p;
 	}
 	// primary data page full
+	/**
+	 * no overflow page
+	 */
 	if (pageOvflow(pg) == NO_PAGE) {
 		// add first overflow page in chain
+
+		// create a new overflow page 
 		PageID newp = addPage(r->ovflow);
+		// set this page as overflow page of existing primary page(pg)
 		pageSetOvflow(pg,newp);
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
-		// can't add to a new page; we have a problem
+		// can't add to a new overflow page; we have a problem
 		if (addToPage(newpg,t) != OK) return NO_PAGE;
 		putPage(r->ovflow,newp,newpg);
 		r->ntups++;
