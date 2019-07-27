@@ -228,8 +228,6 @@ Bool SplitPage( Reln _r )
 			// most possible situation, reading a tuple
 												//		&& end == NULl // Attention
 			if( *(initial + i) != '\0' && start != NULL ) {
-				// temp_tuple[ tuple_length ] = *(initial + i);
-				// tuple_length++;
 				continue;
 			}
 
@@ -238,11 +236,10 @@ Bool SplitPage( Reln _r )
 				/**
 				 * Attention : These asserts can be deleted to increase speed
 				 */
-				// assert( end == NULL && tuple_length == 0 );
 				assert( end == NULL );
-				// temp_tuple[ tuple_length ] = *(initial + i);
 				start = initial + i;
 			}
+
 			// end of a tuple					//		&& end == NULl // Attention
 			if( *(initial + i) == '\0' && start != NULL ) {
 				end = initial + i;
@@ -250,8 +247,6 @@ Bool SplitPage( Reln _r )
 				BackTuple( backup, &existing_scanned_tuples_num, start, end );
 				// after store finished, reset
 				last_end = end;
-				memset( temp_tuple, 0, tuple_length );
-				tuple_length = 0;
 				start = NULL;
 				end = NULL;
 				continue;
@@ -267,48 +262,20 @@ Bool SplitPage( Reln _r )
 
 		}
 		// after store
-		// reset this page
+		// reset this page's 3 members, the last one data[1] should be same
+		// reset the tuple parts
+		resetPageInfo( curr_page );
+
 		// insert again, except this time you use one more bit of hash value
+		for( int i = 0 ; i < how_many_tuples_curr_page ; i++ ) {
+			addToRelationSplitVersion( _r, backup[ i ] );
+		}
+		// free char **backup
 		freeBackup(backup);
+		// move to next page
 		curr_pid = pageOvflow( curr_page );
 	}
 
-
-
-	for( int i = 0 ; i < ( PAGESIZE-hdr_size ) ; i++ ) {
-		// if currently it is still part of tuple, copy it;
-		if( start != NULL && end == NULL ) {
-			tuple[ tuple_length ] = *( initial + i );
-			tuple_length++;
-			continue;	// avoiding below if to save speed
-		}
-		// find a tuple start offset
-		if( *(initial + i) != '\0' && start == NULL ) {
-			start = initial + i;
-			continue;	// avoiding below if to save speed
-		}
-		// find a tuple end offset
-		if( *(initial + i) == '\0' && start != NULL ) {
-			assert( end == NULL );
-			end = initial + i;
-			//-------------------------------------------- these two lines should not matter, since default char fot each
-			//												index is '\0'(end of string)				
-			// tuple[ tuple_length ] = '\0';
-			// tuple_length++;	
-			//--------------------------------------------
-			// TODO
-			// rehash
-			Bits tuple_hash_value = tupleHash( _r, tuple);
-			Bits tuple_hash_bits = getLower( tuple_hash_value, _r->depth+1 ); // take the lower (depth + 1) bits
-
-
-			// after finish redisturibute, reset things
-			start = NULL;
-			end = NULL;
-			memset( tuple, 0, tuple_length );
-			tuple_length = 0;
-		}
-	}
 }
 
 /**
@@ -411,7 +378,7 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 	Page pg = getPage(r->data,p);
 	if (addToPage(pg,t) == OK) {
 		putPage(r->data,p,pg);
-		// r->ntups++;
+		r->ntups++;
 		return p;
 	}
 	// primary data page full
@@ -430,7 +397,7 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		// can't add to a new overflow page; we have a problem
 		if (addToPage(newpg,t) != OK) return NO_PAGE;
 		putPage(r->ovflow,newp,newpg);
-		// r->ntups++;
+		r->ntups++;
 		return p;
 	}
 	else {
@@ -448,7 +415,7 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 			else {
 				if (prevpg != NULL) free(prevpg);
 				putPage(r->ovflow,ovp,ovpg);
-				// r->ntups++;
+				r->ntups++;
 				return p;
 			}
 		}
@@ -464,7 +431,7 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		// link to existing overflow chain
 		pageSetOvflow(prevpg,newp);
 		putPage(r->ovflow,prevp,prevpg);
-        // r->ntups++;
+        r->ntups++;
 		return p;
 	}
 	

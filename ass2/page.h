@@ -23,4 +23,6 @@ Offset pageOvflow(Page);
 void pageSetOvflow(Page, PageID);
 Count pageFreeSpace(Page);
 
+void resetPageInfo(Page which_page);
+
 #endif

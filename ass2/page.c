@@ -151,3 +151,20 @@ Count pageFreeSpace(Page p) {
 	return (PAGESIZE-hdr_size-p->free);
 }
 
+
+void resetPageInfo(Page which_page)
+{
+	which_page->free = 0;
+	// which_page->ovflow = which_page->ovflow;
+	which_page->ntuples = 0;
+	memset( &data[0], 0, ( PAGESIZE- 2*sizeof(Offset) - sizeof(Count) ) );
+}
+struct PageRep {
+	/**
+	 * free = 0 means that the initial address of first free byte is "0 + p->data"
+	 */
+	Offset free;   // offset within data[] of free space
+	Offset ovflow; // Offset of overflow page (if any)
+	Count ntuples; // #tuples in this page
+	char data[1];  // start of data
+};
