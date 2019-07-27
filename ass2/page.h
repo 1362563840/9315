@@ -14,6 +14,7 @@ typedef struct PageRep *Page;
 Page newPage();
 PageID addPage(FILE *);
 Page getPage(FILE *, PageID);
+Page getPageCertainInfo(FILE *f, PageID pid);
 Status putPage(FILE *, PageID, Page);
 Status addToPage(Page, Tuple);
 char *pageData(Page);

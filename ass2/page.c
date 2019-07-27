@@ -8,6 +8,9 @@
 
 // internal representation of pages
 struct PageRep {
+	/**
+	 * free = 0 means that the initial address of first free byte is "0 + p->data"
+	 */
 	Offset free;   // offset within data[] of free space
 	Offset ovflow; // Offset of overflow page (if any)
 	Count ntuples; // #tuples in this page
@@ -32,6 +35,11 @@ Page newPage()
 	p->ntuples = 0;
 	Count hdr_size = 2*sizeof(Offset) + sizeof(Count);
 	int dataSize = PAGESIZE - hdr_size;
+	/**
+	 * because, p->data is the fourth member of struct PageRep
+	 * when using "p->data", it means the address of "p->data"
+	 * That is why "dataSize = PAGESIZE - hdr_size;"
+	 */
 	memset(p->data, 0, dataSize);
 	return p;
 }
@@ -63,6 +71,25 @@ Page getPage(FILE *f, PageID pid)
 	return p;
 }
 
+/***
+ * Warning, this page contains part of global info, not even cv, let alone tuples
+ */
+Page getPageCertainInfo(FILE *f, PageID pid)
+{
+	assert(pid >= 0);
+	/**
+	 * Becuase PageId, Count, Offset are same size
+	 */
+	Page p = malloc( Offset * 6 );
+	assert(p != NULL);
+	// move to target page
+	int ok = fseek(f, pid*PAGESIZE, SEEK_SET);
+	assert(ok == 0);
+	int n = fread(p, 1, ( Offset * 6 ), f);
+	assert(n == Offset * 6 );
+	return p;
+}
+
 // write a Page to a file; release allocated buffer
 Status putPage(FILE *f, PageID pid, Page p)
 {
@@ -91,6 +118,28 @@ Status addToPage(Page p, Tuple t)
 	p->ntuples++;
 	return OK;
 }
+
+/**
+ * TODO
+ * 
+ * 
+ * Difference between split verions and non split verion is that
+ * if this tuple still belongs to old page, then do nothing
+ */
+Status addToPageSplitVersion(Page p, Tuple t)
+{
+	int n = tupLength(t);
+	char *c = p->data + p->free;
+	Count hdr_size = 2*sizeof(Offset) + sizeof(Count);
+	// doesn't fit ... return fail code
+	// assume caller will put it elsewhere
+	if (c+n > &p->data[PAGESIZE-hdr_size-2]) return -1;
+	strcpy(c, t);
+	p->free += n+1;
+	p->ntuples++;
+	return OK;
+}
+
 
 // extract page info
 char *pageData(Page p) { return p->data; }

@@ -1,0 +1,30 @@
+Before
+sp ->   [ 0]  (d0,50,0,-1) -> (Ov1,50, 0, 2) -> (Ov2,50, 0, 3) -> (Ov3,20, 0, -1)
+        [ 1]  (d1,0,1012,-1)
+        [ 2]  (d2,60,0,-1) -> (Ov4,40, 0, -1)
+        [ 3]  (d3,2,989,-1)
+
+
+After 
+
+        [ 0]  (d0,50,0,-1) -> (Ov1,50, 0, 2) -> (Ov2,0, 1012, 3) -> (Ov3,10, 0, -1)
+sp ->   [ 1]  (d1,0,1012,-1)
+        [ 2]  (d2,60,0,-1) -> (Ov4,40, 0, -1)
+        [ 3]  (d3,2,989,-1)
+        [ 4]  (d3,50,0,-1) -> (what is the supposed to be pid?,10, 0, -1)
+
+File overflow content
+
+ov1(1024), ov2(1024)(empty, ov3(1024), ov4(1024), 
+
+Despite that you say in spec that "This is ok if they are eventually used to hold more tuples.", we do not
+know if there are more tuples waiting to be inserted. 
+
+So do we need to delete empty page Ov2? 
+Also, in disk file, do we need to move ov3 and ov4 backward leaving no fragment space?
+
+Similar question about tuples in one page. For example "Tuple 1, Tuple 2, Tuple3". After splitting, Tuple 2 is moved.
+So there are fragment space between Tuple 1 and Tuple3. How to deal with the fragment?
+
+Do we need to rename ov3 as ov2 and ov4 as ov3?
+

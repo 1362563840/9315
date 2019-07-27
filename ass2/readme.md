@@ -1,1 +1,2 @@
-the reln.h, reln.c is modified
+file :  reln.h, reln.c is modified
+        page.c page.h
