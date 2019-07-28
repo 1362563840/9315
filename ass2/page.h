@@ -23,6 +23,9 @@ Offset pageOvflow(Page);
 void pageSetOvflow(Page, PageID);
 Count pageFreeSpace(Page);
 
-void resetPageInfo(Page which_page);
+void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page );
+
+void UnlinkTailEmptyPage(Page which_page);
+PageID addNewoverflowPage(FILE *_f, Reln _r);
 
 #endif

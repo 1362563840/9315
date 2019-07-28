@@ -93,6 +93,14 @@ void freeVals(char **vals, int nattrs)
 // 	*target = *target | _val;
 // }
 
+void freeVals( char **_vals, int _nvals )
+{
+	for( int i = 0 ; i < _nvals ; i++ ) {
+		free( _vals[ i ] );
+	}
+	free( _vals );
+}
+
 Bits tupleHash(Reln r, Tuple t)
 {
 	char buf[MAXBITS+1];
@@ -125,6 +133,7 @@ Bits tupleHash(Reln r, Tuple t)
 
 	bitsString(hash,buf);
 	printf("hash(%s) = %s\n", vals[0], buf);
+	freeVals( vals, nvals );
 	return hash;
 }
 

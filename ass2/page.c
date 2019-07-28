@@ -44,6 +44,9 @@ Page newPage()
 	return p;
 }
 
+/**
+ * This function only add a new main page
+ */
 // append a new Page to a file; return its PageID
 PageID addPage(FILE *f)
 {
@@ -54,6 +57,44 @@ PageID addPage(FILE *f)
 	PageID pid = pos/PAGESIZE;
 	Page p = newPage();
 	ok = putPage(f, pid, p);
+	assert(ok == 0);
+	return pid;
+}
+
+// append a new overflow Page to a file; return its PageID
+PageID addNewoverflowPage(FILE *_f, Reln _r)
+{
+	/**
+	 * Attention : assert can be deleted
+	 */
+	assert( ovflowFile( _r ) == _f );
+	// Before put a new Page, check if
+	PageID temp_pid = Tail_empty_page( _r );
+	/**
+	 * Attention : check can be deleted
+	 */
+	// ------------------------------------------------- do some check
+	if( temp_pid != NO_PAGE ) {
+		Page check_page = getPageCertainInfo( _r->data, temp_pid );
+		assert( pageOvflow( check_page ) == NO_PAGE );
+		free( check_page );
+	}
+	// ------------------------------------------------- do some check
+	if( temp_pid != NO_PAGE	) {
+		// then there is one empty page
+		// use it, and remove it from empty page list
+		Remove_Empty_pid( _r, temp_pid );
+		return temp_pid;
+	}
+
+	// no empty page
+	int ok = fseek(_f, 0, SEEK_END);
+	assert(ok == 0);
+	int pos = ftell(_f);
+	assert(pos >= 0);
+	PageID pid = pos/PAGESIZE;
+	Page p = newPage();
+	ok = putPage(_f, pid, p);
 	assert(ok == 0);
 	return pid;
 }
@@ -80,13 +121,13 @@ Page getPageCertainInfo(FILE *f, PageID pid)
 	/**
 	 * Becuase PageId, Count, Offset are same size
 	 */
-	Page p = malloc( Offset * 6 );
+	Page p = malloc( Offset * 3 );
 	assert(p != NULL);
 	// move to target page
 	int ok = fseek(f, pid*PAGESIZE, SEEK_SET);
 	assert(ok == 0);
-	int n = fread(p, 1, ( Offset * 6 ), f);
-	assert(n == Offset * 6 );
+	int n = fread(p, 1, ( Offset * 3 ), f);
+	assert(n == Offset * 3 );
 	return p;
 }
 
@@ -152,19 +193,24 @@ Count pageFreeSpace(Page p) {
 }
 
 
-void resetPageInfo(Page which_page)
+void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 {
-	which_page->free = 0;
+	_which_page->free = 0;
 	// which_page->ovflow = which_page->ovflow;
-	which_page->ntuples = 0;
-	memset( &data[0], 0, ( PAGESIZE- 2*sizeof(Offset) - sizeof(Count) ) );
+	_which_page->ntuples = 0;
+	memset( &_which_page->data[0], 0, ( PAGESIZE- 2*sizeof(Offset) - sizeof(Count) ) );
+	putPage( _handler, _pid, _which_page );
 }
-struct PageRep {
+
+/**
+ * parse the page just before the tail page, set the ovflow as NO_PAGE
+ */
+void UnlinkTailEmptyPage(Page _page_before_tail_page)
+{
 	/**
-	 * free = 0 means that the initial address of first free byte is "0 + p->data"
+	 * Attention, aseert can be deleted
 	 */
-	Offset free;   // offset within data[] of free space
-	Offset ovflow; // Offset of overflow page (if any)
-	Count ntuples; // #tuples in this page
-	char data[1];  // start of data
-};
+	assert( _page_before_tail_page->free == 0 );
+	assert( _page_before_tail_page->ntuples == 0 );
+	_page_before_tail_page->ovflow = NO_PAGE;
+}

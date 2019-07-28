@@ -27,4 +27,8 @@ Count splitp(Reln r);
 ChVecItem *chvec(Reln r);
 void relationStats(Reln r);
 
+PageID Tail_empty_page( Reln _r );
+
+void Remove_Empty_pid(  Reln _r, PageID _which_one );
+
 #endif
