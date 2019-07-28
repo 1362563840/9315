@@ -28,4 +28,8 @@ void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page );
 void UnlinkTailEmptyPage(Page which_page);
 PageID addNewoverflowPage(FILE *_f, Reln _r);
 
+void deleteNode( FILE * _handler, PageID _faterPID, PageID _deletedPID );
+
+void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAdded_pid );
+
 #endif

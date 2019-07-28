@@ -11,8 +11,13 @@
 #include "hash.h"
 
 #include <string.h>
+#include <math.h>
 
 #define HEADERSIZE (3*sizeof(Count)+sizeof(Offset))
+
+void freeBackup( char **backup, int how_many_tuples );
+void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *end );
+void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid );
 
 struct RelnRep {
 	Count  nattrs; // number of attributes
@@ -143,29 +148,50 @@ void closeRelation(Reln r)
 	free(r);
 }
 
-freeBackup( char **backup, int how_many_tuples ) {
-	for( int i = 0; i < how_many_tuples ; i++ ) {
-		free( backup[ i ] );
-	}
-	free( backup );
-}
 
 /**
- * 															including	including
- * 																	*end = '\0'
+ * after splitting is done, need to check if there is any empty overflow page , and collect them
+ * 
+ * The only place empty page in list can exist is the list starting with the page pointed by _r->sp
+ * 
+ * Remember to putPage()
  */
-BackTuple( char **backup, int *how_many_existing_tuples, char *start, char *end )
-{											//
-	char *temp = malloc( sizeof( char ) * ( end - start + 1 ) );
-	char *offset = start;
-	for( int i = 0 ; offset <= end ; i++ ) {
-		temp[ i ] = *offset;
-		offset = offset + 1;
+void collectEmptyPage( Reln _r )
+{
+	Page main_page = getPage( _r->data, _r->sp );
+	
+	PageID father_PID = _r->sp;
+	PageID curr_ov_pageID = pageOvflow( main_page );
+	free(main_page);
+
+	for( ; curr_ov_pageID != NO_PAGE ; ) {	
+		Page curr_ov_page = getPage( _r->ovflow, curr_ov_pageID );
+		// check if empty by checking #numOftuple
+		if( pageNTuples( curr_ov_page ) == 0 ) {
+			/**
+			 * The reason that do the three lines below before deleteNode() and StoreEmptyOvPage()
+			 * is that when a node is going to be deleted, the son node info need to be recorded, 
+			 * otherwise the list is corrupted.
+			 */
+			father_PID = father_PID; // this line actually does nothing
+			curr_ov_pageID = pageOvflow( curr_ov_page );
+			free( curr_ov_page );
+
+			deleteNode( _r->ovflow, father_PID, curr_ov_pageID );
+			// after delted, need to store this empty ov page info to _r->first_empty_page
+			StoreEmptyOvPage( _r, curr_ov_pageID );
+			// can not use break; mayber there are other empty ov pages;
+			continue;
+		}
+
+		father_PID = curr_ov_pageID;
+		curr_ov_pageID = pageOvflow( curr_ov_page );
+		free( curr_ov_page );
 	}
-	backup
+
 }
 
-void Store_And_insert_agian( File *_handler, PageID _pid, Reln _r ) 
+void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r ) 
 {
 	const Count hdr_size = 2*sizeof(Offset) + sizeof(Count); // make it const
 
@@ -212,7 +238,7 @@ void Store_And_insert_agian( File *_handler, PageID _pid, Reln _r )
 		if( *(initial + i) == '\0' && start != NULL ) {
 			end = initial + i;
 			// store this tuple	into backup
-			BackTuple( backup, &existing_scanned_tuples_num, start, end );
+			BackTuple( backup, existing_scanned_tuples_num, start, end );
 			// count tuple nums by + 1
 			existing_scanned_tuples_num++;
 			// after store finished, reset
@@ -230,24 +256,23 @@ void Store_And_insert_agian( File *_handler, PageID _pid, Reln _r )
 			/**
 			 * Attention : These asserts can be deleted to increase speed
 			 */
-			assert( existing_scanned_tuples_num == how_many_tuples_curr_page );
 			break;
 		}
 
 	}
-
+	assert( existing_scanned_tuples_num == how_many_tuples_curr_page );
 	// after store
 	// reset this page's 3 members, the last one data[1] should be same
 	// reset the tuple parts
-
-	resetPageInfo( _handler, curr_pid, curr_page );
+	_r->ntups = _r->ntups - how_many_tuples_curr_page;
+	resetPageInfo( _handler, _pid, curr_page );
 
 	// insert again, except this time you use one more bit of hash value
 	for( int i = 0 ; i < how_many_tuples_curr_page ; i++ ) {
 		addToRelationSplitVersion( _r, backup[ i ] );
 	}
 	// free char **backup, curr_page
-	freeBackup(backup);
+	freeBackup( backup, existing_scanned_tuples_num );
 	/**
 	 * Attention 
 	 * 
@@ -264,7 +289,7 @@ void Store_And_insert_agian( File *_handler, PageID _pid, Reln _r )
  * Then reset page pointed by sp
  * Then insert again
  */
-Bool SplitPage( Reln _r )
+void SplitPage( Reln _r )
 {	
 	// create a new main page
 	PageID newPid = addPage( _r->data );	
@@ -275,7 +300,11 @@ Bool SplitPage( Reln _r )
 	 */
 	// test if pid is same as theory;
 	Offset temp = _r->sp | ( 1 << _r->depth );
-	assert( newPid == temp );
+	if( newPid != temp ){
+		printf( "newPid is %u, _r->sp is %u, _r->depth is %u, and temp is %u\n",
+						newPid,			_r->sp,		_r->depth,		temp	 );
+		assert( newPid == temp );
+	}
 
 	// first, go main page with _r->data as handler
 	PageID main_page_id = _r->sp;
@@ -297,8 +326,19 @@ Bool SplitPage( Reln _r )
 		curr_ov_pid = pageOvflow( next_ov_page );
 		free( next_ov_page ); 
 	}
+	
+	// before reset sp, collect empty ov pages if exists
+	collectEmptyPage( _r );
 
-	// after split, reset sp
+	// after split, reset sp, depth
+	if( _r->sp == pow( (double)2, (double)(_r->depth) ) - 1 ){
+		printf( "the sp pow is %f\n", pow( (double)2, (double)(_r->depth)) );
+		_r->sp = 0;
+		_r->depth = _r->depth + 1;
+	}
+	else{
+		_r->sp = _r->sp + 1;
+	}
 }
 
 /**
@@ -315,6 +355,12 @@ Bool SplitPage( Reln _r )
 
 PageID addToRelation(Reln r, Tuple t)
 {
+	int C = 1024/(10*r->nattrs) ;
+	if( r->ntups % C == 0 && r->ntups != 0 ) {
+		printf("Splited\n");
+		SplitPage( r );
+	}
+
 	Bits h, p;
 	// char buf[MAXBITS+1];
 	h = tupleHash(r,t);
@@ -533,8 +579,8 @@ PageID Tail_empty_page( Reln _r )
 			/**
 			 * Attention : assert can be deleted
 			 */
-			assert( pageNTuples(Page) == 0 );
-			assert( pageFreeSpace(Page) == 0 );
+			assert( pageNTuples(curr_ov_page) == 0 );
+			assert( pageFreeSpace(curr_ov_page) == 0 );
 			free( curr_ov_page );
 			break;
 		}
@@ -569,4 +615,51 @@ void Remove_Empty_pid(  Reln _r, PageID _which_one )
 		}
 		free( curr_ov_page );
 	}
+}
+
+void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
+{
+	if( _r->first_empty_page == NO_PAGE ) {
+		// This is global info, so no need to pupage
+		_r->first_empty_page = _empty_Page_pid;
+		return;
+	}
+	PageID last_pageID = _r->first_empty_page;
+
+	for(  ; last_pageID != NO_PAGE ; ) {
+		Page curr_page = getPage( _r->ovflow, last_pageID );
+		if( pageOvflow( curr_page ) == NO_PAGE ) {
+			free(curr_page);
+			break;
+		}
+		last_pageID = pageOvflow( curr_page );
+		free(curr_page);
+	}
+	/**
+	 * Attention, this assert can be deleted
+	 */
+	assert( last_pageID != NO_PAGE );
+
+}
+
+void freeBackup( char **backup, int how_many_tuples ) {
+	for( int i = 0; i < how_many_tuples ; i++ ) {
+		free( backup[ i ] );
+	}
+	free( backup );
+}
+
+/**
+ * 															including	including
+ * 																	*end = '\0'
+ */
+void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *end )
+{											//
+	char *temp = malloc( sizeof( char ) * ( end - start + 1 ) );
+	char *offset = start;
+	for( int i = 0 ; offset <= end ; i++ ) {
+		temp[ i ] = *offset;
+		offset = offset + 1;
+	}
+	backup[ how_many_existing_tuples ] = temp;
 }

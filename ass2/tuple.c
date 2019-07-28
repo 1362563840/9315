@@ -59,13 +59,6 @@ void tupleVals(Tuple t, char **vals)
 
 // release memory used for separate attirubte values
 
-void freeVals(char **vals, int nattrs)
-{
-	int i;
-	for (i = 0; i < nattrs; i++) free(vals[i]);
-}
-
-
 // TODO: actually use the choice vector to make the hash
 
 // hash a tuple using the choice vector

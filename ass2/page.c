@@ -75,7 +75,7 @@ PageID addNewoverflowPage(FILE *_f, Reln _r)
 	 */
 	// ------------------------------------------------- do some check
 	if( temp_pid != NO_PAGE ) {
-		Page check_page = getPageCertainInfo( _r->data, temp_pid );
+		Page check_page = getPageCertainInfo( dataFile( _r ), temp_pid );
 		assert( pageOvflow( check_page ) == NO_PAGE );
 		free( check_page );
 	}
@@ -121,13 +121,13 @@ Page getPageCertainInfo(FILE *f, PageID pid)
 	/**
 	 * Becuase PageId, Count, Offset are same size
 	 */
-	Page p = malloc( Offset * 3 );
+	Page p = malloc( sizeof( Offset ) * 3 );
 	assert(p != NULL);
 	// move to target page
 	int ok = fseek(f, pid*PAGESIZE, SEEK_SET);
 	assert(ok == 0);
-	int n = fread(p, 1, ( Offset * 3 ), f);
-	assert(n == Offset * 3 );
+	int n = fread(p, 1, ( sizeof( Offset ) * 3 ), f);
+	assert( n == sizeof( Offset ) * 3 );
 	return p;
 }
 
@@ -214,3 +214,54 @@ void UnlinkTailEmptyPage(Page _page_before_tail_page)
 	assert( _page_before_tail_page->ntuples == 0 );
 	_page_before_tail_page->ovflow = NO_PAGE;
 }
+
+/**
+ * It does not actually delete, just free this page from list
+ * 
+ * Attention, _handler should be r->ovflow
+ * 
+ * Remember , you still need to add this page to r->first_empty_page
+ */
+void deleteNode( FILE * _handler, PageID _faterPID, PageID _deletedPID )
+{
+	Page fatherPage = getPage( _handler, _faterPID );
+	Page sonPage = getPage( _handler, _deletedPID );
+	
+	// son does not have grandson;
+	if( sonPage->ovflow == NO_PAGE ) {
+		fatherPage->ovflow = NO_PAGE;
+	}
+	// son does have
+	else{
+		fatherPage->ovflow = sonPage->ovflow;
+	}
+	sonPage->ovflow = NO_PAGE;
+
+	putPage( _handler, _faterPID, fatherPage );
+	putPage( _handler, _deletedPID, sonPage );
+	
+	/**
+	 * Because putPage() above use free();
+	 */
+	// free(fatherPage);
+	// free(sonPage);
+}
+
+/**
+ * Attention, _handler should be r->ovflow
+ */
+void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAdded_pid )
+{
+	Page fatherPage = getPage( _handler, _last_pageID );
+	/**
+	 * Attention, this assert can be deleted
+	 */
+	assert( fatherPage->ovflow == NO_PAGE );
+	fatherPage->ovflow = _last_pageID;
+	putPage( _handler, _last_pageID, fatherPage );
+
+	/**
+	 * Because putPage() above use free();
+	 */
+	// free(fatherPage);
+}	
