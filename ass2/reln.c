@@ -18,6 +18,8 @@
 void freeBackup( char **backup, int how_many_tuples );
 void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *end );
 void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid );
+void Display( Reln _r );
+
 
 struct RelnRep {
 	Count  nattrs; // number of attributes
@@ -662,4 +664,111 @@ void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *
 		offset = offset + 1;
 	}
 	backup[ how_many_existing_tuples ] = temp;
+}
+
+/**
+ * Remember to free
+ */
+void PrintOneTuple( char *start, char *end )
+{											//
+	char *temp = malloc( sizeof( char ) * ( end - start + 1 ) );
+	char *offset = start;
+	for( int i = 0 ; offset <= end ; i++ ) {
+		temp[ i ] = *offset;
+		offset = offset + 1;
+	}
+	printf("%s\n",temp);
+	free(temp);
+}
+
+Count ReadTupleFromPage( char *_Data_part ) 
+{
+	const Count hdr_size = 2*sizeof(Offset) + sizeof(Count); // make it const
+	Count existing_scanned_tuples_num = 0;
+	char * const initial = _Data_part;
+
+	char *start = NULL;
+	char *end = NULL;
+	char *last_end = NULL;
+	// for current page, extract all tuples and store
+	for( int i = 0 ; i < ( PAGESIZE - hdr_size ) ; i++ ) {
+		// most possible situation, reading a tuple
+											//		&& end == NULl // Attention
+		if( *(initial + i) != '\0' && start != NULL ) {
+			/**
+			 * Attention : These asserts can be deleted to increase speed
+			 */
+			assert( end == NULL );
+			continue;
+		}
+
+		// start of a tuple
+		if( *(initial + i) != '\0' && start == NULL ) {
+			/**
+			 * Attention : These asserts can be deleted to increase speed
+			 */
+			assert( end == NULL );
+			start = initial + i;
+			continue;
+		}
+
+		// end of a tuple					//		&& end == NULl // Attention
+		if( *(initial + i) == '\0' && start != NULL ) {
+			end = initial + i;
+			// store this tuple	into backup
+			PrintOneTuple( start, end );
+			// count tuple nums by + 1
+			existing_scanned_tuples_num++;
+			// after store finished, reset
+			last_end = end;
+			start = NULL;
+			end = NULL;
+			continue;
+		}
+
+		// last possible, the previous tuple is the last tuple
+		// Thic condition can be satisfied 
+		// because if no tuple at all, then this for loop should never happen
+		assert( last_end != NULL );
+		if( *(initial + i) == '\0' &&  start == NULL && ( initial + i ) == last_end + 1 ) {
+			/**
+			 * Attention : These asserts can be deleted to increase speed
+			 */
+			break;
+		}
+
+	}
+	return existing_scanned_tuples_num;
+}
+
+void Display( Reln _r )
+{
+	// go through all main pages
+	for( int i = 0 ; i < _r->npages ; i++ ) {
+		printf( "cur main page id is %d\n", i );
+		
+		Page curr_main_page = getPage( _r->data, i );
+		Count how_many_tuples_curr_page = pageNTuples( curr_main_page );
+
+		char * const initial = pageData( curr_main_page );
+
+		Count result = ReadTupleFromPage( initial );
+		assert( result == how_many_tuples_curr_page );
+
+		PageID ovPage = pageOvflow( curr_main_page ) ;
+		free(curr_main_page);
+
+		for( ; ovPage != NO_PAGE ;  ) {
+			printf( "cur overflow page is %d attached to %d\n", ovPage , i );
+			Page temp_ov_page = getPage( _r->ovflow, ovPage );
+
+			Count temp_how_many_tuples_curr_page = pageNTuples( temp_ov_page );
+			char * const temp_init = pageData( temp_ov_page );
+			Count temp_result = ReadTupleFromPage( temp_init );
+			assert( temp_how_many_tuples_curr_page == temp_result );
+
+			ovPage = pageOvflow( temp_ov_page );
+			free(temp_ov_page);
+		}
+	}
 }

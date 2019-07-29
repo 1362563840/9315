@@ -3,3 +3,5 @@ file :  reln.h, reln.c is modified
         tuple.c tuple.h
 
         Makefile
+
+        stats.c -> add display()
