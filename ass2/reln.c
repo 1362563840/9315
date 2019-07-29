@@ -669,7 +669,7 @@ void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *
 /**
  * Remember to free
  */
-void PrintOneTuple( char *start, char *end )
+void PrintOneTuple( Reln _r, char *start, char *end )
 {											//
 	char *temp = malloc( sizeof( char ) * ( end - start + 1 ) );
 	char *offset = start;
@@ -678,10 +678,12 @@ void PrintOneTuple( char *start, char *end )
 		offset = offset + 1;
 	}
 	printf("%s\n",temp);
+	// next line has a printf()
+	tupleHash(_r, temp);
 	free(temp);
 }
 
-Count ReadTupleFromPage( char *_Data_part ) 
+Count ReadTupleFromPage( Reln _r, char *_Data_part ) 
 {
 	const Count hdr_size = 2*sizeof(Offset) + sizeof(Count); // make it const
 	Count existing_scanned_tuples_num = 0;
@@ -716,7 +718,7 @@ Count ReadTupleFromPage( char *_Data_part )
 		if( *(initial + i) == '\0' && start != NULL ) {
 			end = initial + i;
 			// store this tuple	into backup
-			PrintOneTuple( start, end );
+			PrintOneTuple( _r, start, end );
 			// count tuple nums by + 1
 			existing_scanned_tuples_num++;
 			// after store finished, reset
@@ -752,7 +754,7 @@ void Display( Reln _r )
 
 		char * const initial = pageData( curr_main_page );
 
-		Count result = ReadTupleFromPage( initial );
+		Count result = ReadTupleFromPage( _r, initial );
 		assert( result == how_many_tuples_curr_page );
 
 		PageID ovPage = pageOvflow( curr_main_page ) ;
@@ -764,7 +766,7 @@ void Display( Reln _r )
 
 			Count temp_how_many_tuples_curr_page = pageNTuples( temp_ov_page );
 			char * const temp_init = pageData( temp_ov_page );
-			Count temp_result = ReadTupleFromPage( temp_init );
+			Count temp_result = ReadTupleFromPage( _r, temp_init );
 			assert( temp_how_many_tuples_curr_page == temp_result );
 
 			ovPage = pageOvflow( temp_ov_page );

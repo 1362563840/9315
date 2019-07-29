@@ -119,13 +119,13 @@ Bits tupleHash(Reln r, Tuple t)
 		hash = hash | ( extracted_bit << i );
 	}
 
-	for( int i = 0 ; i < nvals ; i++ ){
-		bitsString(hashes[i],buf);
-		printf("hash(%s) = %s\n", vals[i], buf);
-	}
+	// for( int i = 0 ; i < nvals ; i++ ){
+	// 	bitsString(hashes[i],buf);
+	// 	printf("hash(%s) = %s\n", vals[i], buf);
+	// }
 
 	bitsString(hash,buf);
-	printf("hash(%s) = %s\n", vals[0], buf);
+	printf("hash(all_attrs) = %s\n", buf);
 	freeVals( vals, nvals );
 	return hash;
 }
