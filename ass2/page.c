@@ -84,6 +84,7 @@ PageID addNewoverflowPage(FILE *_f, Reln _r)
 		// then there is one empty page
 		// use it, and remove it from empty page list
 		Remove_Empty_pid( _r, temp_pid );
+		printf("special called free ov page\n");
 		return temp_pid;
 	}
 
@@ -207,10 +208,10 @@ void linkNewFreeOvPage(FILE * _handler, PageID _father_pid, Page _father_page, P
 	/**
 	 * Attention, aseert can be deleted
 	 */
-	assert( _faher_page->free == 0 );
-	assert( _faher_page->ntuples == 0 );
-	assert( _faher_page->ovflow == NO_PAGE );
-	_faher_page->ovflow = _son_pid;
+	assert( _father_page->free == 0 );
+	assert( _father_page->ntuples == 0 );
+	assert( _father_page->ovflow == NO_PAGE );
+	_father_page->ovflow = _son_pid;
 	// putpage
 	putPage( _handler, _father_pid, _father_page );
 }
@@ -252,6 +253,38 @@ void deleteNode( FILE * _handler, PageID _faterPID, PageID _deletedPID )
 
 	putPage( _handler, _faterPID, fatherPage );
 	putPage( _handler, _deletedPID, sonPage );
+	
+	/**
+	 * Because putPage() above use free();
+	 */
+	// free(fatherPage);
+	// free(sonPage);
+}
+
+/**
+ * It does not actually delete, just free this page from list
+ * 
+ * Attention, two handler, fatherPID is main page
+ * 
+ * Remember , you still need to add this page to r->first_empty_page
+ */
+void deleteNodeFatherIsMain( FILE * _fater_handler, FILE * _son_handler, PageID _faterPID, PageID _deletedPID )
+{
+	Page fatherPage = getPage( _fater_handler, _faterPID );
+	Page sonPage = getPage( _son_handler, _deletedPID );
+	assert( pageOvflow( fatherPage ) == _deletedPID );
+	// son does not have son which is grandson;
+	if( sonPage->ovflow == NO_PAGE ) {
+		fatherPage->ovflow = NO_PAGE;
+	}
+	// son does have
+	else{
+		fatherPage->ovflow = sonPage->ovflow;
+	}
+	sonPage->ovflow = NO_PAGE;
+
+	putPage( _fater_handler, _faterPID, fatherPage );
+	putPage( _son_handler, _deletedPID, sonPage );
 	
 	/**
 	 * Because putPage() above use free();

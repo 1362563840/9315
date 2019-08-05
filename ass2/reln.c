@@ -165,6 +165,38 @@ void collectEmptyPage( Reln _r )
 	PageID father_PID = _r->sp;
 	PageID curr_ov_pageID = pageOvflow( main_page );
 	free(main_page);
+	// TODO
+	// before go to next loop, if the page after main page is empty ov page, then need to adjust file handler
+	
+	/**
+	 * before go to next loop, if the father_page is stll main page, then need to adjust file handler
+	 */
+	for( ; curr_ov_pageID != NO_PAGE ; ) {
+		Page curr_ov_page = getPage( _r->ovflow, curr_ov_pageID );
+		if( pageNTuples( curr_ov_page ) == 0 ) {
+			PageID temp_son_node_of_deleted_node = pageOvflow( curr_ov_page );
+			free( curr_ov_page );
+
+			deleteNodeFatherIsMain( _r->data, _r->ovflow, father_PID, curr_ov_pageID );
+
+			StoreEmptyOvPage( _r, curr_ov_pageID );
+			curr_ov_pageID = temp_son_node_of_deleted_node;
+			continue;
+		}
+
+		// TODO
+		father_PID = curr_ov_pageID;
+		curr_ov_pageID = pageOvflow( curr_ov_page );
+		free( curr_ov_page );
+		/**
+		 * Attention debug printf(), need to delete
+		 */
+		printf("through break\n");
+		break;
+	}
+
+	// previous loop ends through " curr_ov_pageID != NO_PAGE", then the next loop will not go
+	// unless it is through break;
 
 	for( ; curr_ov_pageID != NO_PAGE ; ) {	
 		Page curr_ov_page = getPage( _r->ovflow, curr_ov_pageID );
@@ -366,8 +398,8 @@ PageID addToRelation(Reln r, Tuple t)
 	if( r->ntups % C == 0 && r->ntups != 0 ) {
 		printf("Splited\n");
 		SplitPage( r );
+		printf("Splited finished\n");
 	}
-	printf("split finsihed\n");
 
 	Bits h, p;
 	// char buf[MAXBITS+1];
@@ -592,7 +624,7 @@ PageID Tail_empty_page( Reln _r )
 			 * Attention : assert can be deleted
 			 */
 			assert( pageNTuples(curr_ov_page) == 0 );
-			assert( pageFreeSpace(curr_ov_page) == 0 );
+			assert( pageFreeSpace(curr_ov_page) == 1012 );
 			free( curr_ov_page );
 			break;
 		}
@@ -602,7 +634,7 @@ PageID Tail_empty_page( Reln _r )
 	return temp_ov_pid;
 }
 
-void Remove_Empty_pid(  Reln _r, PageID _which_one )
+void Remove_Empty_pid( Reln _r, PageID _which_one )
 {
 	PageID temp_ov_pid = _r->first_empty_page;
 	if( temp_ov_pid == _which_one ) {
@@ -622,7 +654,8 @@ void Remove_Empty_pid(  Reln _r, PageID _which_one )
 		else{
 			UnlinkTailEmptyPage( curr_ov_page );
 			putPage( _r->ovflow, temp_ov_pid, curr_ov_page );
-			free( curr_ov_page );
+			// because putPage() already free(), so no need to free again
+			// free( curr_ov_page );
 			break;
 		}
 		free( curr_ov_page );
@@ -771,9 +804,13 @@ void Display( Reln _r )
 		Count how_many_tuples_curr_page = pageNTuples( curr_main_page );
 
 		char * const initial = pageData( curr_main_page );
-
-		Count result = ReadTupleFromPage( _r, initial );
-		assert( result == how_many_tuples_curr_page );
+		if( pageNTuples( curr_main_page ) != 0 ) {
+			Count result = ReadTupleFromPage( _r, initial );
+			assert( result == how_many_tuples_curr_page );
+		}
+		else {
+			printf("No tuple at this page\n");
+		}
 
 		PageID ovPage = pageOvflow( curr_main_page ) ;
 		free(curr_main_page);
@@ -784,8 +821,14 @@ void Display( Reln _r )
 
 			Count temp_how_many_tuples_curr_page = pageNTuples( temp_ov_page );
 			char * const temp_init = pageData( temp_ov_page );
-			Count temp_result = ReadTupleFromPage( _r, temp_init );
-			assert( temp_how_many_tuples_curr_page == temp_result );
+
+			if( pageNTuples( temp_ov_page ) != 0 ) {
+				Count temp_result = ReadTupleFromPage( _r, temp_init );
+				assert( temp_how_many_tuples_curr_page == temp_result );
+			}
+			else {
+				printf("No tuple at this page\n");
+			}
 
 			ovPage = pageOvflow( temp_ov_page );
 			free(temp_ov_page);
