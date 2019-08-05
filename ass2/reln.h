@@ -35,4 +35,6 @@ void Remove_Empty_pid(  Reln _r, PageID _which_one );
 
 void Display( Reln _r );
 
+void DisplayOvPageInfo( Reln _r );
+
 #endif

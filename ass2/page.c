@@ -198,8 +198,21 @@ void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 	_which_page->free = 0;
 	// which_page->ovflow = which_page->ovflow;
 	_which_page->ntuples = 0;
-	memset( &_which_page->data[0], 0, ( PAGESIZE- 2*sizeof(Offset) - sizeof(Count) ) );
+	memset( &_which_page->data[0], 0, ( PAGESIZE - 2*sizeof(Offset) - sizeof(Count) ) );
 	putPage( _handler, _pid, _which_page );
+}
+
+void linkNewFreeOvPage(FILE * _handler, PageID _father_pid, Page _father_page, PageID _son_pid)
+{
+	/**
+	 * Attention, aseert can be deleted
+	 */
+	assert( _faher_page->free == 0 );
+	assert( _faher_page->ntuples == 0 );
+	assert( _faher_page->ovflow == NO_PAGE );
+	_faher_page->ovflow = _son_pid;
+	// putpage
+	putPage( _handler, _father_pid, _father_page );
 }
 
 /**
@@ -227,7 +240,7 @@ void deleteNode( FILE * _handler, PageID _faterPID, PageID _deletedPID )
 	Page fatherPage = getPage( _handler, _faterPID );
 	Page sonPage = getPage( _handler, _deletedPID );
 	
-	// son does not have grandson;
+	// son does not have son which is grandson;
 	if( sonPage->ovflow == NO_PAGE ) {
 		fatherPage->ovflow = NO_PAGE;
 	}

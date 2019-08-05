@@ -176,12 +176,17 @@ void collectEmptyPage( Reln _r )
 			 * otherwise the list is corrupted.
 			 */
 			father_PID = father_PID; // this line actually does nothing
-			curr_ov_pageID = pageOvflow( curr_ov_page );
+			PageID temp_son_node_of_deleted_node = pageOvflow( curr_ov_page );
 			free( curr_ov_page );
 
 			deleteNode( _r->ovflow, father_PID, curr_ov_pageID );
 			// after delted, need to store this empty ov page info to _r->first_empty_page
 			StoreEmptyOvPage( _r, curr_ov_pageID );
+			
+			// after deleteNode() and StoreEmptyOvPage() are finsihed, need to adjust variable "curr_ov_pageID",
+			// let it point to the son of deleted node. Son node can be NO_PAGE, it is fine
+			curr_ov_pageID = temp_son_node_of_deleted_node;
+
 			// can not use break; mayber there are other empty ov pages;
 			continue;
 		}
@@ -362,6 +367,7 @@ PageID addToRelation(Reln r, Tuple t)
 		printf("Splited\n");
 		SplitPage( r );
 	}
+	printf("split finsihed\n");
 
 	Bits h, p;
 	// char buf[MAXBITS+1];
@@ -530,6 +536,10 @@ void relationStats(Reln r)
 	printf("Global Info:\n");
 	printf("#attrs:%d  #pages:%d  #tuples:%d  d:%d  sp:%d\n",
 	       r->nattrs, r->npages, r->ntups, r->depth, r->sp);
+	
+	// below line is added.
+	DisplayOvPageInfo(r);
+
 	printf("Choice vector\n");
 	printChVec(r->cv);
 	printf("Bucket Info:\n");
@@ -622,25 +632,33 @@ void Remove_Empty_pid(  Reln _r, PageID _which_one )
 void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
 {
 	if( _r->first_empty_page == NO_PAGE ) {
-		// This is global info, so no need to pupage
+		// This is global info, so do not need to putpage()
 		_r->first_empty_page = _empty_Page_pid;
 		return;
 	}
-	PageID last_pageID = _r->first_empty_page;
-
-	for(  ; last_pageID != NO_PAGE ; ) {
-		Page curr_page = getPage( _r->ovflow, last_pageID );
+	// last means the tail
+	PageID curr_pageID = _r->first_empty_page;
+	for(  ; curr_pageID != NO_PAGE ; ) {
+		Page curr_page = getPage( _r->ovflow, curr_pageID );
+		// check if curr_page has child node, if not, this is the last page
 		if( pageOvflow( curr_page ) == NO_PAGE ) {
-			free(curr_page);
+			// link new empty ov page to "curr_page", curr_page must be in file overflow
+			// need to putpage(), linkNewFreeOvPage() do putpage()
+			linkNewFreeOvPage( _r->ovflow, curr_pageID, curr_page, _empty_Page_pid);
+			// because linkNewFreeOvPage() has putpage(), so it does free() already
+			// free(curr_page);
 			break;
 		}
-		last_pageID = pageOvflow( curr_page );
+		curr_pageID = pageOvflow( curr_page );
 		free(curr_page);
 	}
+	
 	/**
 	 * Attention, this assert can be deleted
 	 */
-	assert( last_pageID != NO_PAGE );
+	Page check_page = getPage( _r->ovflow, curr_pageID ); // page before last one
+	assert( pageOvflow(check_page) == _empty_Page_pid );
+	free(check_page);
 
 }
 
@@ -773,4 +791,25 @@ void Display( Reln _r )
 			free(temp_ov_page);
 		}
 	}
+}
+
+void DisplayOvPageInfo( Reln _r )
+{
+	if( _r->first_empty_page == NO_PAGE ) {
+		printf("There is no free overflow page\n");
+	}
+	else{
+		PageID currPID = _r->first_empty_page;
+		printf("ov id is %d ", currPID );
+		Page curr_page = getPage( _r->ovflow, currPID );
+		currPID = pageOvflow( curr_page );
+		free(curr_page);
+		for( ; currPID != NO_PAGE ; ) {
+			printf(" -> ov id is %d ", currPID );
+			Page temp_curr_page = getPage( _r->ovflow, currPID );
+			currPID = pageOvflow( temp_curr_page );
+			free(temp_curr_page);
+		}
+	}
+	printf("\n");
 }

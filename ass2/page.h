@@ -25,6 +25,7 @@ Count pageFreeSpace(Page);
 
 void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page );
 
+void linkNewFreeOvPage(FILE * _handler, PageID _father_pid, Page _father_page, PageID _son_pid);
 void UnlinkTailEmptyPage(Page which_page);
 PageID addNewoverflowPage(FILE *_f, Reln _r);
 
