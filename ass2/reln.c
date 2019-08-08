@@ -19,7 +19,23 @@ void freeBackup( char **backup, int how_many_tuples );
 void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *end );
 void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid );
 void Display( Reln _r );
+void SplitPage( Reln _r );
+void collectEmptyPage( Reln _r );
+void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r );
+int int_pow(int base, int exp);
 
+int int_pow(int base, int exp)
+{
+    int result = 1;
+    while (exp)
+    {
+        if (exp & 1)
+           result *= base;
+        exp /= 2;
+        base *= base;
+    }
+    return result;
+}
 
 struct RelnRep {
 	Count  nattrs; // number of attributes
@@ -250,7 +266,8 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 	char *start = NULL;
 	char *end = NULL;
 	char *last_end = NULL;
-	char **backup = malloc( sizeof( char * ) * how_many_tuples_curr_page );
+	char **backup = calloc( how_many_tuples_curr_page, sizeof( char * ) );
+	// char **backup = malloc( sizeof( char * ) * how_many_tuples_curr_page );
 	// for current page, extract all tuples and store
 	for( int i = 0 ; i < ( PAGESIZE - hdr_size ) ; i++ ) {
 		// most possible situation, reading a tuple
@@ -273,7 +290,7 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 			continue;
 		}
 
-		// end of a tuple					//		&& end == NULl // Attention
+		// end of a tuple					//		&& end != NULl // Attention
 		if( *(initial + i) == '\0' && start != NULL ) {
 			end = initial + i;
 			// store this tuple	into backup
@@ -295,10 +312,20 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 			/**
 			 * Attention : These asserts can be deleted to increase speed
 			 */
+			assert( end == NULL );
 			break;
 		}
 
 	}
+	// debug ----------------------
+	if( existing_scanned_tuples_num != how_many_tuples_curr_page ) {
+		printf("recorded number is %d, while real scanned number is %d\n", how_many_tuples_curr_page, existing_scanned_tuples_num);
+
+		for( int i = 0 ; i < existing_scanned_tuples_num ; i++ ) {
+			printf("%s\n", backup[i]);
+		}
+	}
+	// debug ----------------------
 	assert( existing_scanned_tuples_num == how_many_tuples_curr_page );
 	// after store
 	// reset this page's 3 members, the last one data[1] should be same
@@ -370,8 +397,8 @@ void SplitPage( Reln _r )
 	collectEmptyPage( _r );
 
 	// after split, reset sp, depth
-	if( _r->sp == pow( (double)2, (double)(_r->depth) ) - 1 ){
-		printf( "the sp pow is %f\n", pow( (double)2, (double)(_r->depth)) );
+	if( _r->sp == ( int_pow( 2, _r->depth ) - 1 ) ){
+		printf( "the sp pow is %d\n", int_pow( 2, _r->depth ) );
 		_r->sp = 0;
 		_r->depth = _r->depth + 1;
 	}
@@ -432,7 +459,10 @@ PageID addToRelation(Reln r, Tuple t)
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
 		// can't add to a new overflow page; we have a problem
-		if (addToPage(newpg,t) != OK) return NO_PAGE;
+		if (addToPage(newpg,t) != OK){
+			free( newpg );
+			return NO_PAGE;
+		}
 		putPage(r->ovflow,newp,newpg);
 		r->ntups++;
 		return p;
@@ -446,13 +476,20 @@ PageID addToRelation(Reln r, Tuple t)
 		while (ovp != NO_PAGE) {
 			ovpg = getPage(r->ovflow, ovp);
 			if (addToPage(ovpg,t) != OK) {
-				prevp = ovp; prevpg = ovpg;
+				prevp = ovp;
+				// before assigning "prevpg" current page, need to free already pointing
+				if( prevpg != NULL ) {
+					free(prevpg);
+				}
+				prevpg = ovpg;
 				ovp = pageOvflow(ovpg);
 			}
 			else {
 				if (prevpg != NULL) free(prevpg);
+				// putPage() help us free "ovpg"
 				putPage(r->ovflow,ovp,ovpg);
 				r->ntups++;
+				free( pg );
 				return p;
 			}
 		}
@@ -469,6 +506,7 @@ PageID addToRelation(Reln r, Tuple t)
 		pageSetOvflow(prevpg,newp);
 		putPage(r->ovflow,prevp,prevpg);
         r->ntups++;
+		free( pg );
 		return p;
 	}
 	
@@ -505,7 +543,10 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
 		// can't add to a new overflow page; we have a problem
-		if (addToPage(newpg,t) != OK) return NO_PAGE;
+		if (addToPage(newpg,t) != OK) {
+			free( newpg );
+			return NO_PAGE;
+		} 
 		putPage(r->ovflow,newp,newpg);
 		r->ntups++;
 		return p;
@@ -519,7 +560,11 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		while (ovp != NO_PAGE) {
 			ovpg = getPage(r->ovflow, ovp);
 			if (addToPage(ovpg,t) != OK) {
-				prevp = ovp; prevpg = ovpg;
+				prevp = ovp;
+				if( prevpg != NULL ) {
+					free(prevpg);
+				} 
+				prevpg = ovpg;
 				// get next overflow pageID
 				ovp = pageOvflow(ovpg);
 			}
@@ -527,6 +572,7 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 				if (prevpg != NULL) free(prevpg);
 				putPage(r->ovflow,ovp,ovpg);
 				r->ntups++;
+				free( pg) ;
 				return p;
 			}
 		}
@@ -543,6 +589,7 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		pageSetOvflow(prevpg,newp);
 		putPage(r->ovflow,prevp,prevpg);
         r->ntups++;
+		free( pg) ;
 		return p;
 	}
 	
@@ -704,11 +751,11 @@ void freeBackup( char **backup, int how_many_tuples ) {
 
 /**
  * 															including	including
- * 																	*end = '\0'
+ * 																	*end == '\0'
  */
 void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *end )
 {											//
-	char *temp = malloc( sizeof( char ) * ( end - start + 1 ) );
+	char *temp = calloc( sizeof( char ) * ( end - start + 1 ), 1 );
 	char *offset = start;
 	for( int i = 0 ; offset <= end ; i++ ) {
 		temp[ i ] = *offset;
@@ -769,7 +816,7 @@ Count ReadTupleFromPage( Reln _r, char *_Data_part )
 		if( *(initial + i) == '\0' && start != NULL ) {
 			end = initial + i;
 			// store this tuple	into backup
-			PrintOneTuple( _r, start, end );
+			// PrintOneTuple( _r, start, end );
 			// count tuple nums by + 1
 			existing_scanned_tuples_num++;
 			// after store finished, reset
@@ -798,7 +845,7 @@ void Display( Reln _r )
 {
 	// go through all main pages
 	for( int i = 0 ; i < _r->npages ; i++ ) {
-		printf( "cur main page id is %d\n", i );
+		// printf( "cur main page id is %d\n", i );
 		
 		Page curr_main_page = getPage( _r->data, i );
 		Count how_many_tuples_curr_page = pageNTuples( curr_main_page );
@@ -809,14 +856,15 @@ void Display( Reln _r )
 			assert( result == how_many_tuples_curr_page );
 		}
 		else {
-			printf("No tuple at this page\n");
+			// printf("No tuple at this page\n");
 		}
 
+		checkPgeAssert( curr_main_page );
 		PageID ovPage = pageOvflow( curr_main_page ) ;
 		free(curr_main_page);
 
 		for( ; ovPage != NO_PAGE ;  ) {
-			printf( "cur overflow page is %d attached to %d\n", ovPage , i );
+			// printf( "cur overflow page is %d attached to %d\n", ovPage , i );
 			Page temp_ov_page = getPage( _r->ovflow, ovPage );
 
 			Count temp_how_many_tuples_curr_page = pageNTuples( temp_ov_page );
@@ -827,9 +875,9 @@ void Display( Reln _r )
 				assert( temp_how_many_tuples_curr_page == temp_result );
 			}
 			else {
-				printf("No tuple at this page\n");
+				// printf("No tuple at this page\n");
 			}
-
+			checkPgeAssert( temp_ov_page );
 			ovPage = pageOvflow( temp_ov_page );
 			free(temp_ov_page);
 		}

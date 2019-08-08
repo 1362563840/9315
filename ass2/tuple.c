@@ -125,7 +125,7 @@ Bits tupleHash(Reln r, Tuple t)
 	// }
 
 	bitsString(hash,buf);
-	printf("hash(all_attrs) = %s\n", buf);
+	printf("hash(%s) = %s\n", t, buf);
 	freeVals( vals, nvals );
 	return hash;
 }

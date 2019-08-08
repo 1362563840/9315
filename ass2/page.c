@@ -40,7 +40,7 @@ Page newPage()
 	 * when using "p->data", it means the address of "p->data"
 	 * That is why "dataSize = PAGESIZE - hdr_size;"
 	 */
-	memset(p->data, 0, dataSize);
+	memset(p->data, '\0', dataSize);
 	return p;
 }
 
@@ -199,7 +199,10 @@ void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 	_which_page->free = 0;
 	// which_page->ovflow = which_page->ovflow;
 	_which_page->ntuples = 0;
-	memset( &_which_page->data[0], 0, ( PAGESIZE - 2*sizeof(Offset) - sizeof(Count) ) );
+	// memset( &(_which_page->data[0]), '\0', ( PAGESIZE - 2*sizeof(Offset) - sizeof(Count) ) );
+	Count hdr_size = 2*sizeof(Offset) + sizeof(Count);
+	int dataSize = PAGESIZE - hdr_size;
+	memset(_which_page->data, '\0', dataSize);
 	putPage( _handler, _pid, _which_page );
 }
 
@@ -311,3 +314,19 @@ void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAd
 	 */
 	// free(fatherPage);
 }	
+
+/**
+ * debug function
+ */
+void checkPgeAssert( Page _page )
+{
+	Offset end = PAGESIZE - 2*sizeof(Offset) - sizeof(Count);
+	char *offset = _page->data + _page->free;
+	for( int i = 0 ; offset < _page->data + end ; i++ ) {
+		if( *offset != '\0' ) {
+			printf("the initial pos is %u, after %d offset, this char is %c\n", _page->free, i, *offset);
+			assert( 1 == 0 );
+		}
+		offset = offset + 1;
+	}
+}

@@ -34,4 +34,6 @@ void deleteNodeFatherIsMain( FILE * _fater_handler, FILE * _son_handler, PageID 
 
 void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAdded_pid );
 
+void checkPgeAssert( Page _page );
+
 #endif
