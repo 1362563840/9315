@@ -29,11 +29,13 @@ void linkNewFreeOvPage(FILE * _handler, PageID _father_pid, Page _father_page, P
 void UnlinkTailEmptyPage(Page which_page);
 PageID addNewoverflowPage(FILE *_f, Reln _r);
 
-void deleteNode( FILE * _handler, PageID _faterPID, PageID _deletedPID );
-void deleteNodeFatherIsMain( FILE * _fater_handler, FILE * _son_handler, PageID _faterPID, PageID _deletedPID );
+void deleteNode( FILE * _handler, PageID _fatherPID, PageID _deletedPID );
+void deleteNodeFatherIsMain( FILE * _father_handler, FILE * _son_handler, PageID _fatherPID, PageID _deletedPID );
 
 void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAdded_pid );
 
 void checkPgeAssert( Page _page );
+
+void displayPage( Page _page );
 
 #endif

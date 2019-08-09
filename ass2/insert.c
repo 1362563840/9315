@@ -54,8 +54,8 @@ int main(int argc, char **argv)
 		}
 		if (verbose) printf("%s -> %d\n",tup,pid);
 		free(t);
-		relationStats(r);
-		Display(r);
+		// relationStats(r);
+		// Display(r);
 	}
 
 	// clean up

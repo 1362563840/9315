@@ -95,6 +95,11 @@ PageID addNewoverflowPage(FILE *_f, Reln _r)
 	assert(pos >= 0);
 	PageID pid = pos/PAGESIZE;
 	Page p = newPage();
+	/**
+	 * Attention : debug
+	 */
+	printf("1\n");
+	checkPgeAssert( p );
 	ok = putPage(_f, pid, p);
 	assert(ok == 0);
 	return pid;
@@ -203,6 +208,11 @@ void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 	Count hdr_size = 2*sizeof(Offset) + sizeof(Count);
 	unsigned int dataSize = PAGESIZE - hdr_size;
 	memset(_which_page->data, '\0', dataSize);
+	/**
+	 * Attention : debug
+	 */
+	printf("2\n");
+	checkPgeAssert( _which_page );
 	putPage( _handler, _pid, _which_page );
 }
 
@@ -216,6 +226,12 @@ void linkNewFreeOvPage(FILE * _handler, PageID _father_pid, Page _father_page, P
 	assert( _father_page->ovflow == NO_PAGE );
 	_father_page->ovflow = _son_pid;
 	// putpage
+	/**
+	 * Attention : debug
+	 */
+	printf("3\n");
+	checkPgeAssert( _father_page );
+	printf("3-----------------\n");
 	putPage( _handler, _father_pid, _father_page );
 }
 
@@ -239,9 +255,9 @@ void UnlinkTailEmptyPage(Page _page_before_tail_page)
  * 
  * Remember , you still need to add this page to r->first_empty_page
  */
-void deleteNode( FILE * _handler, PageID _faterPID, PageID _deletedPID )
+void deleteNode( FILE * _handler, PageID _fatherPID, PageID _deletedPID )
 {
-	Page fatherPage = getPage( _handler, _faterPID );
+	Page fatherPage = getPage( _handler, _fatherPID );
 	Page sonPage = getPage( _handler, _deletedPID );
 	
 	// son does not have son which is grandson;
@@ -253,8 +269,14 @@ void deleteNode( FILE * _handler, PageID _faterPID, PageID _deletedPID )
 		fatherPage->ovflow = sonPage->ovflow;
 	}
 	sonPage->ovflow = NO_PAGE;
-
-	putPage( _handler, _faterPID, fatherPage );
+	// putpage
+	/**
+	 * Attention : debug
+	 */
+	printf("4\n");
+	checkPgeAssert( fatherPage );
+	checkPgeAssert( sonPage );
+	putPage( _handler, _fatherPID, fatherPage );
 	putPage( _handler, _deletedPID, sonPage );
 	
 	/**
@@ -271,9 +293,10 @@ void deleteNode( FILE * _handler, PageID _faterPID, PageID _deletedPID )
  * 
  * Remember , you still need to add this page to r->first_empty_page
  */
-void deleteNodeFatherIsMain( FILE * _fater_handler, FILE * _son_handler, PageID _faterPID, PageID _deletedPID )
+void deleteNodeFatherIsMain( FILE * _father_handler, FILE * _son_handler, PageID _fatherPID, PageID _deletedPID )
 {
-	Page fatherPage = getPage( _fater_handler, _faterPID );
+	// fatherPage should be main page
+	Page fatherPage = getPage( _father_handler, _fatherPID );
 	Page sonPage = getPage( _son_handler, _deletedPID );
 	assert( pageOvflow( fatherPage ) == _deletedPID );
 	// son does not have son which is grandson;
@@ -285,8 +308,15 @@ void deleteNodeFatherIsMain( FILE * _fater_handler, FILE * _son_handler, PageID 
 		fatherPage->ovflow = sonPage->ovflow;
 	}
 	sonPage->ovflow = NO_PAGE;
-
-	putPage( _fater_handler, _faterPID, fatherPage );
+	// putpage
+	/**
+	 * Attention : debug
+	 */
+	printf("5\n");
+	checkPgeAssert( fatherPage );
+	checkPgeAssert( sonPage );
+	printf("5-----------------------\n");
+	putPage( _father_handler, _fatherPID, fatherPage );
 	putPage( _son_handler, _deletedPID, sonPage );
 	
 	/**
@@ -307,6 +337,12 @@ void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAd
 	 */
 	assert( fatherPage->ovflow == NO_PAGE );
 	fatherPage->ovflow = _last_pageID;
+	// putpage
+	/**
+	 * Attention : debug
+	 */
+	printf("6\n");
+	checkPgeAssert( fatherPage );
 	putPage( _handler, _last_pageID, fatherPage );
 
 	/**
@@ -320,7 +356,7 @@ void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAd
  */
 void checkPgeAssert( Page _page )
 {
-	Offset end = PAGESIZE - 2*sizeof(Offset) - sizeof(Count);
+	Offset end = PAGESIZE - 2*sizeof(Offset) - sizeof(Count); // end == 1012
 	char *offset = _page->data + _page->free;
 	for( int i = 0 ; offset < _page->data + end ; i++ ) {
 		if( *offset != '\0' ) {
@@ -329,4 +365,12 @@ void checkPgeAssert( Page _page )
 		}
 		offset = offset + 1;
 	}
+}
+/**
+ * debug function
+ */
+void displayPage( Page _page )
+{
+	printf("Page's free space is %d, next node is %d, num of tuples is %d\n", 
+		_page->free,	_page->ovflow, _page->ntuples);
 }

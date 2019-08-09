@@ -191,11 +191,30 @@ void collectEmptyPage( Reln _r )
 		Page curr_ov_page = getPage( _r->ovflow, curr_ov_pageID );
 		if( pageNTuples( curr_ov_page ) == 0 ) {
 			PageID temp_son_node_of_deleted_node = pageOvflow( curr_ov_page );
-			free( curr_ov_page );
+			/**
+			 * Attention, debug
+			 */
+			printf("test\n");
+			displayPage(curr_ov_page);
+			checkPgeAssert( curr_ov_page );
+			printf("test-----------------------\n");
+			// free( curr_ov_page );
 
 			deleteNodeFatherIsMain( _r->data, _r->ovflow, father_PID, curr_ov_pageID );
 
+			/**
+			 * Attention, debug
+			 */
+			printf("test1\n");
+			displayPage(curr_ov_page);
+			checkPgeAssert( curr_ov_page );
+			printf("test1-----------------------\n");
+			// free( curr_ov_page );
 			StoreEmptyOvPage( _r, curr_ov_pageID );
+			/**
+			 * Attention
+			 */
+			free( curr_ov_page );
 			curr_ov_pageID = temp_son_node_of_deleted_node;
 			continue;
 		}
@@ -421,7 +440,8 @@ void SplitPage( Reln _r )
 
 PageID addToRelation(Reln r, Tuple t)
 {
-	int C = 1024/(10*r->nattrs) ;
+	// int C = 1024/(10*r->nattrs) ;
+	const int C = 60;
 	if( r->ntups % C == 0 && r->ntups != 0 ) {
 		printf("Splited\n");
 		SplitPage( r );
@@ -441,6 +461,12 @@ PageID addToRelation(Reln r, Tuple t)
 	// bitsString(p,buf); printf("page = %s\n",buf);
 	Page pg = getPage(r->data,p);
 	if (addToPage(pg,t) == OK) {
+		/**
+		 * Attention, debug
+		 */
+		printf("7\n");
+		checkPgeAssert( pg );
+		printf("7-----------------------\n");
 		putPage(r->data,p,pg);
 		r->ntups++;
 		return p;
@@ -456,6 +482,12 @@ PageID addToRelation(Reln r, Tuple t)
 		PageID newp = addNewoverflowPage(r->ovflow, r);
 		// set this page as overflow page of existing primary page(pg)
 		pageSetOvflow(pg,newp);
+		/**
+		 * Attention, debug
+		 */
+		printf("8\n");
+		checkPgeAssert( pg );
+		printf("8-----------------------\n");
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
 		// can't add to a new overflow page; we have a problem
@@ -463,6 +495,12 @@ PageID addToRelation(Reln r, Tuple t)
 			free( newpg );
 			return NO_PAGE;
 		}
+		/**
+		 * Attention, debug
+		 */
+		printf("9\n");
+		checkPgeAssert( newpg );
+		printf("9-----------------------\n");
 		putPage(r->ovflow,newp,newpg);
 		r->ntups++;
 		return p;
@@ -487,6 +525,12 @@ PageID addToRelation(Reln r, Tuple t)
 			else {
 				if (prevpg != NULL) free(prevpg);
 				// putPage() help us free "ovpg"
+				/**
+				 * Attention, debug
+				 */
+				printf("10\n");
+				checkPgeAssert( ovpg );
+				printf("10-----------------------\n");
 				putPage(r->ovflow,ovp,ovpg);
 				r->ntups++;
 				free( pg );
@@ -501,9 +545,21 @@ PageID addToRelation(Reln r, Tuple t)
 		// insert tuple into new page
 		Page newpg = getPage(r->ovflow,newp);
         if (addToPage(newpg,t) != OK) return NO_PAGE;
+		/**
+		 * Attention, debug
+		 */
+		printf("11\n");
+		checkPgeAssert( newpg );
+		printf("11-----------------------\n");
         putPage(r->ovflow,newp,newpg);
 		// link to existing overflow chain
 		pageSetOvflow(prevpg,newp);
+		/**
+		 * Attention, debug
+		 */
+		printf("12\n");
+		checkPgeAssert( prevpg );
+		printf("12-----------------------\n");
 		putPage(r->ovflow,prevp,prevpg);
         r->ntups++;
 		free( pg );
@@ -524,6 +580,12 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 	// bitsString(p,buf); printf("page = %s\n",buf);
 	Page pg = getPage(r->data,p);
 	if (addToPage(pg,t) == OK) {
+		/**
+		 * Attention, debug
+		 */
+		printf("13\n");
+		checkPgeAssert( pg );
+		printf("13-----------------------\n");
 		putPage(r->data,p,pg);
 		r->ntups++;
 		return p;
@@ -540,6 +602,12 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		// set this page as overflow page of existing primary page(pg)
 		pageSetOvflow(pg,newp);
 		// this putPage() is basically writing only one new info which is page->ovflow
+		/**
+		 * Attention, debug
+		 */
+		printf("14\n");
+		checkPgeAssert( pg );
+		printf("14-----------------------\n");
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
 		// can't add to a new overflow page; we have a problem
@@ -547,6 +615,12 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 			free( newpg );
 			return NO_PAGE;
 		} 
+		/**
+		 * Attention, debug
+		 */
+		printf("15\n");
+		checkPgeAssert( newpg );
+		printf("15-----------------------\n");
 		putPage(r->ovflow,newp,newpg);
 		r->ntups++;
 		return p;
@@ -570,6 +644,12 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 			}
 			else {
 				if (prevpg != NULL) free(prevpg);
+				/**
+				 * Attention, debug
+				 */
+				printf("16\n");
+				checkPgeAssert( ovpg );
+				printf("16-----------------------\n");
 				putPage(r->ovflow,ovp,ovpg);
 				r->ntups++;
 				free( pg) ;
@@ -584,9 +664,21 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		// insert tuple into new page
 		Page newpg = getPage(r->ovflow,newp);
         if (addToPage(newpg,t) != OK) return NO_PAGE;
+		/**
+		 * Attention, debug
+		 */
+		printf("17\n");
+		checkPgeAssert( newpg );
+		printf("17-----------------------\n");
         putPage(r->ovflow,newp,newpg);
 		// link to existing overflow chain
 		pageSetOvflow(prevpg,newp);
+		/**
+		 * Attention, debug
+		 */
+		printf("18\n");
+		checkPgeAssert( prevpg );
+		printf("18-----------------------\n");
 		putPage(r->ovflow,prevp,prevpg);
         r->ntups++;
 		free( pg) ;
@@ -727,6 +819,13 @@ void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
 		if( pageOvflow( curr_page ) == NO_PAGE ) {
 			// link new empty ov page to "curr_page", curr_page must be in file overflow
 			// need to putpage(), linkNewFreeOvPage() does putpage()
+			/**
+			 * Attention, debug
+			 */
+			printf("test2\n");
+			displayPage(curr_page);
+			checkPgeAssert( curr_page );
+			printf("test2-----------------------\n");
 			linkNewFreeOvPage( _r->ovflow, curr_pageID, curr_page, _empty_Page_pid);
 			// because linkNewFreeOvPage() has putpage(), so it does free() already
 			// free(curr_page);
