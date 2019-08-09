@@ -692,6 +692,7 @@ void Remove_Empty_pid( Reln _r, PageID _which_one )
 		 */
 		return;
 	}
+
 	for( ; temp_ov_pid != NO_PAGE ; ) {
 		Page curr_ov_page = getPageCertainInfo( _r->ovflow, temp_ov_pid );
 		// check the next page id
@@ -707,6 +708,8 @@ void Remove_Empty_pid( Reln _r, PageID _which_one )
 		}
 		free( curr_ov_page );
 	}
+	
+	return;
 }
 
 void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
@@ -716,14 +719,14 @@ void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
 		_r->first_empty_page = _empty_Page_pid;
 		return;
 	}
-	// last means the tail
+	// find the tail ov page in the list which stores all empty ov pages
 	PageID curr_pageID = _r->first_empty_page;
 	for(  ; curr_pageID != NO_PAGE ; ) {
 		Page curr_page = getPage( _r->ovflow, curr_pageID );
-		// check if curr_page has child node, if not, this is the last page
+		// check if curr_page has child node, if not, this is the tail page
 		if( pageOvflow( curr_page ) == NO_PAGE ) {
 			// link new empty ov page to "curr_page", curr_page must be in file overflow
-			// need to putpage(), linkNewFreeOvPage() do putpage()
+			// need to putpage(), linkNewFreeOvPage() does putpage()
 			linkNewFreeOvPage( _r->ovflow, curr_pageID, curr_page, _empty_Page_pid);
 			// because linkNewFreeOvPage() has putpage(), so it does free() already
 			// free(curr_page);
@@ -872,6 +875,9 @@ void Display( Reln _r )
 
 			if( pageNTuples( temp_ov_page ) != 0 ) {
 				Count temp_result = ReadTupleFromPage( _r, temp_init );
+				if( temp_how_many_tuples_curr_page != temp_result ) {
+					printf("first is %d, second is %d\n", temp_how_many_tuples_curr_page, temp_result);
+				}	
 				assert( temp_how_many_tuples_curr_page == temp_result );
 			}
 			else {

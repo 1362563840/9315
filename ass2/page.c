@@ -75,13 +75,13 @@ PageID addNewoverflowPage(FILE *_f, Reln _r)
 	 */
 	// ------------------------------------------------- do some check
 	if( temp_pid != NO_PAGE ) {
-		Page check_page = getPageCertainInfo( dataFile( _r ), temp_pid );
+		Page check_page = getPageCertainInfo( ovflowFile( _r ), temp_pid );
 		assert( pageOvflow( check_page ) == NO_PAGE );
 		free( check_page );
 	}
 	// ------------------------------------------------- do some check
 	if( temp_pid != NO_PAGE	) {
-		// then there is one empty page
+		// then there is one empty ov page
 		// use it, and remove it from empty page list
 		Remove_Empty_pid( _r, temp_pid );
 		printf("special called free ov page\n");
@@ -114,7 +114,7 @@ Page getPage(FILE *f, PageID pid)
 }
 
 /***
- * Warning, this page contains part of global info, not even cv, let alone tuples
+ * Warning, this page contains part of page info, not even cv, let alone tuples
  */
 Page getPageCertainInfo(FILE *f, PageID pid)
 {
@@ -156,7 +156,7 @@ Status addToPage(Page p, Tuple t)
 	// assume caller will put it elsewhere
 	if (c+n > &p->data[PAGESIZE-hdr_size-2]) return -1;
 	strcpy(c, t);
-	p->free += n+1;
+	p->free = p->free + n + 1;
 	p->ntuples++;
 	return OK;
 }
@@ -201,7 +201,7 @@ void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 	_which_page->ntuples = 0;
 	// memset( &(_which_page->data[0]), '\0', ( PAGESIZE - 2*sizeof(Offset) - sizeof(Count) ) );
 	Count hdr_size = 2*sizeof(Offset) + sizeof(Count);
-	int dataSize = PAGESIZE - hdr_size;
+	unsigned int dataSize = PAGESIZE - hdr_size;
 	memset(_which_page->data, '\0', dataSize);
 	putPage( _handler, _pid, _which_page );
 }
