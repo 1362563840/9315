@@ -195,6 +195,7 @@ void collectEmptyPage( Reln _r )
 			 * Attention, debug
 			 */
 			printf("test\n");
+			printf("this ov id is %d\n", curr_ov_pageID);
 			displayPage(curr_ov_page);
 			checkPgeAssert( curr_ov_page );
 			printf("test-----------------------\n");
@@ -206,6 +207,7 @@ void collectEmptyPage( Reln _r )
 			 * Attention, debug
 			 */
 			printf("test1\n");
+			printf("this ov id is %d\n", curr_ov_pageID);
 			displayPage(curr_ov_page);
 			checkPgeAssert( curr_ov_page );
 			printf("test1-----------------------\n");
@@ -245,7 +247,7 @@ void collectEmptyPage( Reln _r )
 			father_PID = father_PID; // this line actually does nothing
 			PageID temp_son_node_of_deleted_node = pageOvflow( curr_ov_page );
 			free( curr_ov_page );
-
+			// Attention
 			deleteNode( _r->ovflow, father_PID, curr_ov_pageID );
 			// after delted, need to store this empty ov page info to _r->first_empty_page
 			StoreEmptyOvPage( _r, curr_ov_pageID );
@@ -286,6 +288,7 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 	char *end = NULL;
 	char *last_end = NULL;
 	char **backup = calloc( how_many_tuples_curr_page, sizeof( char * ) );
+	assert( backup != NULL );
 	// char **backup = malloc( sizeof( char * ) * how_many_tuples_curr_page );
 	// for current page, extract all tuples and store
 	for( int i = 0 ; i < ( PAGESIZE - hdr_size ) ; i++ ) {
@@ -784,7 +787,7 @@ void Remove_Empty_pid( Reln _r, PageID _which_one )
 		 */
 		return;
 	}
-
+	// do not know if remove successful, just assume?
 	for( ; temp_ov_pid != NO_PAGE ; ) {
 		Page curr_ov_page = getPageCertainInfo( _r->ovflow, temp_ov_pid );
 		// check the next page id
@@ -811,6 +814,7 @@ void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
 		_r->first_empty_page = _empty_Page_pid;
 		return;
 	}
+	printf("_r->first_empty_page is %d\n", _r->first_empty_page);
 	// find the tail ov page in the list which stores all empty ov pages
 	PageID curr_pageID = _r->first_empty_page;
 	for(  ; curr_pageID != NO_PAGE ; ) {
@@ -823,6 +827,8 @@ void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
 			 * Attention, debug
 			 */
 			printf("test2\n");
+			relationStats(_r);
+			printf("this ov id is %d while pared in is %d\n", curr_pageID, _empty_Page_pid);
 			displayPage(curr_page);
 			checkPgeAssert( curr_page );
 			printf("test2-----------------------\n");
@@ -858,6 +864,7 @@ void freeBackup( char **backup, int how_many_tuples ) {
 void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *end )
 {											//
 	char *temp = calloc( sizeof( char ) * ( end - start + 1 ), 1 );
+	assert( temp != NULL );
 	char *offset = start;
 	for( int i = 0 ; offset <= end ; i++ ) {
 		temp[ i ] = *offset;
@@ -872,6 +879,7 @@ void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *
 void PrintOneTuple( Reln _r, char *start, char *end )
 {											//
 	char *temp = malloc( sizeof( char ) * ( end - start + 1 ) );
+	assert( temp != NULL );
 	char *offset = start;
 	for( int i = 0 ; offset <= end ; i++ ) {
 		temp[ i ] = *offset;
@@ -947,7 +955,7 @@ void Display( Reln _r )
 {
 	// go through all main pages
 	for( int i = 0 ; i < _r->npages ; i++ ) {
-		// printf( "cur main page id is %d\n", i );
+		printf( "cur main page id is %d\n", i );
 		
 		Page curr_main_page = getPage( _r->data, i );
 		Count how_many_tuples_curr_page = pageNTuples( curr_main_page );
@@ -958,7 +966,7 @@ void Display( Reln _r )
 			assert( result == how_many_tuples_curr_page );
 		}
 		else {
-			// printf("No tuple at this page\n");
+			printf("No tuple at this page\n");
 		}
 
 		checkPgeAssert( curr_main_page );
@@ -966,7 +974,7 @@ void Display( Reln _r )
 		free(curr_main_page);
 
 		for( ; ovPage != NO_PAGE ;  ) {
-			// printf( "cur overflow page is %d attached to %d\n", ovPage , i );
+			printf( "cur overflow page is %d attached to %d\n", ovPage , i );
 			Page temp_ov_page = getPage( _r->ovflow, ovPage );
 
 			Count temp_how_many_tuples_curr_page = pageNTuples( temp_ov_page );
@@ -980,7 +988,7 @@ void Display( Reln _r )
 				assert( temp_how_many_tuples_curr_page == temp_result );
 			}
 			else {
-				// printf("No tuple at this page\n");
+				printf("No tuple at this page\n");
 			}
 			checkPgeAssert( temp_ov_page );
 			ovPage = pageOvflow( temp_ov_page );

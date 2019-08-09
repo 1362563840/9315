@@ -32,8 +32,6 @@ PageID addNewoverflowPage(FILE *_f, Reln _r);
 void deleteNode( FILE * _handler, PageID _fatherPID, PageID _deletedPID );
 void deleteNodeFatherIsMain( FILE * _father_handler, FILE * _son_handler, PageID _fatherPID, PageID _deletedPID );
 
-void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAdded_pid );
-
 void checkPgeAssert( Page _page );
 
 void displayPage( Page _page );

@@ -84,7 +84,7 @@ PageID addNewoverflowPage(FILE *_f, Reln _r)
 		// then there is one empty ov page
 		// use it, and remove it from empty page list
 		Remove_Empty_pid( _r, temp_pid );
-		printf("special called free ov page\n");
+		printf("special called free ov page %d\n", temp_pid);
 		return temp_pid;
 	}
 
@@ -213,6 +213,7 @@ void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 	 */
 	printf("2\n");
 	checkPgeAssert( _which_page );
+	printf("2----------------------\n");
 	putPage( _handler, _pid, _which_page );
 }
 
@@ -243,6 +244,7 @@ void UnlinkTailEmptyPage(Page _page_before_tail_page)
 	/**
 	 * Attention, aseert can be deleted
 	 */
+	assert( _page_before_tail_page->ovflow != NO_PAGE );
 	assert( _page_before_tail_page->free == 0 );
 	assert( _page_before_tail_page->ntuples == 0 );
 	_page_before_tail_page->ovflow = NO_PAGE;
@@ -276,6 +278,7 @@ void deleteNode( FILE * _handler, PageID _fatherPID, PageID _deletedPID )
 	printf("4\n");
 	checkPgeAssert( fatherPage );
 	checkPgeAssert( sonPage );
+	printf("4---------------\n");
 	putPage( _handler, _fatherPID, fatherPage );
 	putPage( _handler, _deletedPID, sonPage );
 	
@@ -325,31 +328,6 @@ void deleteNodeFatherIsMain( FILE * _father_handler, FILE * _son_handler, PageID
 	// free(fatherPage);
 	// free(sonPage);
 }
-
-/**
- * Attention, _handler should be r->ovflow
- */
-void InsertOvEmptyPid( FILE * _handler, PageID _last_pageID, PageID _goingToBeAdded_pid )
-{
-	Page fatherPage = getPage( _handler, _last_pageID );
-	/**
-	 * Attention, this assert can be deleted
-	 */
-	assert( fatherPage->ovflow == NO_PAGE );
-	fatherPage->ovflow = _last_pageID;
-	// putpage
-	/**
-	 * Attention : debug
-	 */
-	printf("6\n");
-	checkPgeAssert( fatherPage );
-	putPage( _handler, _last_pageID, fatherPage );
-
-	/**
-	 * Because putPage() above use free();
-	 */
-	// free(fatherPage);
-}	
 
 /**
  * debug function
