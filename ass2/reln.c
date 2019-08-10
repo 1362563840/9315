@@ -789,13 +789,19 @@ void Remove_Empty_pid( Reln _r, PageID _which_one )
 	}
 	// do not know if remove successful, just assume?
 	for( ; temp_ov_pid != NO_PAGE ; ) {
-		Page curr_ov_page = getPageCertainInfo( _r->ovflow, temp_ov_pid );
+		Page curr_ov_page = getPage( _r->ovflow, temp_ov_pid );
 		// check the next page id
 		if( pageOvflow( curr_ov_page ) != _which_one ) {
 			temp_ov_pid = pageOvflow( curr_ov_page );
 		}
 		else{
 			UnlinkTailEmptyPage( curr_ov_page );
+			/**
+			 * Attention, debug
+			 */
+			printf("test3\n");
+			checkPgeAssert( curr_ov_page );
+			printf("test3-----------------------\n");
 			putPage( _r->ovflow, temp_ov_pid, curr_ov_page );
 			// because putPage() already free(), so no need to free again
 			// free( curr_ov_page );
