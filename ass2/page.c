@@ -120,7 +120,7 @@ Page getPage(FILE *f, PageID pid)
 
 /***
  * Warning, this page contains part of page info, not even cv, let alone tuples
- * So, you can not use putPage() for this 
+ * So, you can not use putPage() if you use getPageCertainInfo() instead of getPage()
  */
 Page getPageCertainInfo(FILE *f, PageID pid)
 {
