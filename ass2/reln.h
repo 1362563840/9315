@@ -37,4 +37,6 @@ void Display( Reln _r );
 
 void DisplayOvPageInfo( Reln _r );
 
+int int_pow(int base, int exp);
+
 #endif

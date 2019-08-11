@@ -22,7 +22,6 @@ void Display( Reln _r );
 void SplitPage( Reln _r );
 void collectEmptyPage( Reln _r );
 void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r );
-int int_pow(int base, int exp);
 
 int int_pow(int base, int exp)
 {

@@ -6,6 +6,9 @@ file :  reln.h, reln.c is modified
 
         stats.c -> add display()
 
+        query.c
+        select.c
+
 
 aa,bb,cc ->     000 
 bv,cd,12 ->     100

@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 	}
 
 	// execute the query (find matching tuples)
-
+	// bug, not free
 	char tup[MAXTUPLEN];
 	while ((t = getNextTuple(q)) != NULL) {
 		tupleString(t,tup);

@@ -13,13 +13,16 @@
 #include "bits.h"
 #include "hash.h"
 
+Bool moveToNextPage( Query _q, Page _current_page );
+char * readtupleInQuery( char * start, char * end );
 
 // A suggestion ... you can change however you like
 struct QueryRep {
 	Reln    rel;       // need to remember Relation info
 	Bits    known;     // the hash value from MAH
 	Bits    unknown;   // the unknown bits from MAH
-	PageID  curpage;   // current page in scan
+	PageID  curMainPage;   // current main page in scan
+	PageID  curOvPage;	
 	int     is_ovflow; // are we in the overflow pages?
 	Offset  curtup;    // offset of current tuple within page
 	//TODO
@@ -80,7 +83,6 @@ Query startQuery(Reln r, char *q)
 	Bits hash_value_array[nvals], the_known = 0x00000000, the_unknown = 0x00000000;
 	ChVecItem *cv = chvec(r), curr_cv;	// curr_cv = cv[i]
 	int the_depth = depth(r);
-	PageID the_curpage = 0;
 
 	int i;
 	for (i = 0; i < nvals; i++) {
@@ -98,15 +100,16 @@ Query startQuery(Reln r, char *q)
 	}
 
 	// get the_curpage
-	for (i = 0; i < the_depth; i++) {
-		the_curpage = (bitIsSet(the_known, i)) ? setBit(the_curpage, i) : unsetBit(the_curpage, i);
-	}
+	// for (i = 0; i < the_depth; i++) {
+	// 	the_curpage = (bitIsSet(the_known, i)) ? setBit(the_curpage, i) : unsetBit(the_curpage, i);
+	// }
 
 	// assign value to elements in structure 'QueryRep'
 	new -> rel        =  r;
 	new -> known      =  the_known;
 	new -> unknown    =  the_unknown;
-	new -> curpage    =  the_curpage;
+	new -> curMainPage=  0; // possible bug
+	new -> curOvPage  =  NO_PAGE;
 	new -> is_ovflow  =  0;
 	new -> curtup     =  0;
 	new -> int_depth  =  the_depth;
@@ -123,83 +126,183 @@ Query startQuery(Reln r, char *q)
 
 // get next tuple during a scan
 Tuple getNextTuple(Query q)
-{
-	// TODO
-	// Partial algorithm:
-	// if (more tuples in current page)
-	//    get next matching tuple from current page
-	// else if (current page has overflow)
-	//    move to overflow page
-	//    grab first matching tuple from page
-	// else
-	//    move to "next" bucket
-	//    grab first matching tuple from data page
-	// endif
-	// if (current page has no matching tuples)
-	//    go to next page (try again)
-	// endif
-
-
+{	
+	Page current_page;
 	// initialize
-	Page current_page = (q -> is_ovflow == 0) ? getPage(dataFile(q -> rel), q -> curpage) : getPage(ovflowFile(q -> rel), q -> curpage);
-	Count number_of_tuples = pageNTuples(current_page);
-	// update q -> str_data if current_page changed
-	if (q -> is_ovflow == 1  ||  strcmp(q -> str_data, "EmptyString") == 0) {
-		// q->str_data should include data
-		q -> str_data = pageData(current_page);
+	if( q->is_ovflow == 0 ) {
+		current_page = getPage(dataFile(q->rel), q->curMainPage);
+	}
+	else{
+		/**
+		 * Attention, delete assert
+		*/
+		assert(q->curOvPage != NO_PAGE);
+		current_page = getPage(ovflowFile(q->rel), q->curOvPage);
 	}
 
-	// ensure length of q->str_data > 0
-	// i.e. q->str_data should not be ""
-	// i.e. q->str_data == "SOME DATA"
-	if (tupLength(q -> str_data) == 0) {
-		return NULL;
+	// update q->str_data if current_page changed
+	// get tuple parts start at rel->data[0]
+	q->str_data = pageData(current_page);
+
+	// set the inistal pos to right offset
+	// initial can only change when reading another ov or main page
+	char *initial = q->str_data + q->curtup;
+	char *start = initial;
+
+	// this page's all tuples are checked
+	char *end = NULL;
+	char *last_end = NULL;
+	char *curr = start;
+	for( ; ; ) {
+
+		if( *curr != '\0' && start != NULL ) {
+			q->curtup++;
+			curr = curr + 1;
+			continue;
+		}	
+		
+		// a new tuple start
+		if( *curr != '\0' && start == NULL ) {
+			/**
+			 * Attention, delete assert
+			*/ 
+			assert( last_end == curr - 1 );
+			q->curtup++;
+			start = curr;
+			curr = curr + 1;
+			continue;
+		}
+
+		// a tuple ends
+		if( *curr == '\0' && start != NULL && curr != initial ) {
+			assert( end == NULL );
+			q->curtup++;
+			end = curr;
+			Tuple resultTuple = readtupleInQuery( start, end );
+			Bool matchResult = tupleMatch( q->rel, q->str_query, resultTuple );
+			// if matches
+			if( matchResult == TRUE ) {
+				return resultTuple;
+			}
+			start = NULL;
+			end = NULL;
+			last_end = curr;
+			curr = curr + 1;
+			continue;
+		}
+
+		// this page no longer has tuples from current pos
+		// or no tuple at all
+		if( *curr == '\0' && curr == initial ) {
+			/**
+			 * Attention, delete assert
+			*/ 
+			assert( q->curtup == 0 || q->curtup + pageFreeSpace(current_page) + 12 == PAGESIZE );
+			assert( start == initial );
+			assert( last_end == NULL  );
+			assert( end == NULL );
+			Bool temp_result = moveToNextPage( q, current_page );
+			if( temp_result == FALSE ){
+				break;
+			}
+			initial = q->str_data;
+			start = initial;
+			curr = start;
+			// last_end = NULL; // not necessary
+			/**
+			 * Attention, delete assert
+			*/ 
+			assert( q->curtup == 0 );
+			continue;
+		}
+
+		/**
+		 * Attention, delete assert
+		*/ 
+		assert( start == NULL );
+		assert( end == NULL );
+		assert( last_end != NULL );
+		assert( initial != curr );
+		// all tuples in current page is read
+		if( *curr == '\0' && last_end + 1 == curr ) {
+			Bool temp_result = moveToNextPage( q, current_page );
+			if( temp_result == FALSE ){
+				break;
+			}
+			initial = q->str_data;
+			start = initial;
+			curr = start;
+			last_end = NULL;
+			/**
+			 * Attention, delete assert
+			*/ 
+			assert( q->curtup == 0 );
+			continue;
+		}
+		
 	}
-	
-	// # 1 ------ if (more tuples in current page)
-	// scan current page
-	for (int i = 0; i < number_of_tuples; i++) {
-		// successful match
-		// get the required tuple
-		// then, move pointer to point the next data
-		// lastly, return this required tuple
-		if (tupleMatch(q -> rel, q -> str_query, q -> str_data) == TRUE) {
-			Tuple required_tuple = q -> str_data;
-			q -> str_data += tupLength(q -> str_data) + 1;
-			return required_tuple;
-		}
-		// unsuccessful match
-		// just move pointer to point the next data
-		else {
-			q -> str_data += tupLength(q -> str_data) + 1;
-		}
-
-
-		// # 2 ------ else if (current page has overflow)
-		// scan overflow
-		if (pageOvflow(current_page) != NO_PAGE) {
-			// jump to the overflow page
-			q->curpage = pageOvflow(current_page);
-			q -> is_ovflow = 1;
-		}
-		// # 3 ------ else, move to "next" bucket
-		// jump to next page
-		else {
-			q -> curpage += (1 << q -> int_depth);
-			q -> is_ovflow = 0;
-		}
-
-
-		// # 4 ------ if (current page has no matching tuples)
-		// end loop [ in select.c, line 57: while ((t = getNextTuple(q)) != NULL) ]
-		if (q -> is_ovflow == NO_PAGE) {
-			return NULL;
-		}
-
-	}
-	
-
 	return NULL;
+}
+
+/**
+ * 1. from main page to its ov
+ * 2. from main page to next main
+ * 3. from ov to next main
+ * 4. from ov to ov
+ */
+Bool moveToNextPage( Query _q, Page _current_page )
+{
+	// 1 or 4
+	if( pageOvflow(_current_page) != NO_PAGE ) {
+		_q->curOvPage = pageOvflow(_current_page);
+		free(_current_page);
+		_current_page = getPage( ovflowFile(_q->rel), _q->curOvPage );
+		_q->str_data = pageData(_current_page);
+		
+		_q->is_ovflow = 1;
+		_q->curtup = 0;
+	}
+	// 2 or 3
+	// read next main page or finished
+	else{
+		// all main and ov pages are done
+		if( _q->curMainPage == int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ) {
+			return FALSE;
+		}
+		else{
+			_q->curMainPage++;
+			_q->curOvPage = NO_PAGE;
+			free(_current_page);
+			_current_page = getPage( dataFile(_q->rel), _q->curMainPage );
+			_q->str_data = pageData(_current_page);
+
+			_q->is_ovflow = 0;
+			_q->curtup = 0;
+ 		}
+	}
+	return TRUE;
+}
+
+
+char * readtupleInQuery( char * start, char * end )
+{
+	/**
+	 * Attention, delete assert
+	*/ 
+	assert(start < end);
+	char * result = malloc( sizeof( char ) * ( end - start + 1 ) );
+	if( result == NULL ) {
+		printf("not enough space for malloc\n");
+		exit(1);
+	}
+	char * curr = start;
+	int i = 0;
+	for(  ; curr <= end ; ) {
+		result[ i ] = *curr;
+		curr = curr + 1;
+		i++;
+	}
+	return result;
 }
 
 
@@ -212,5 +315,3 @@ void closeQuery(Query q)
 	// thus, free 'q'
 	free(q);
 }
-
-
