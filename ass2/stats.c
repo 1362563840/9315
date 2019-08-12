@@ -26,9 +26,6 @@ int main(int argc, char **argv)
 	if (r == NULL) fatal("No such relation");
 
 	relationStats(r);
-	if( argc > 2 ) {
-		Display( r );
-	}
 	closeRelation(r);
 
 	return 0;
