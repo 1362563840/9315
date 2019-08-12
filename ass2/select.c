@@ -57,6 +57,7 @@ int main(int argc, char **argv)
 	while ((t = getNextTuple(q)) != NULL) {
 		tupleString(t,tup);
 		printf("%s\n",tup);
+		free(t);
 	}
 
 	// clean up

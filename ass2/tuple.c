@@ -57,35 +57,6 @@ void tupleVals(Tuple t, char **vals)
 	}
 }
 
-// release memory used for separate attirubte values
-
-// TODO: actually use the choice vector to make the hash
-
-// hash a tuple using the choice vector
-// printf("cv[%d] is (%d,%d)\n", i, cv[i].att, cv[i].bit);
-// r->cv[i].what
-
-/**
- * Bit manipulation wont change original val, unless you assign
- */
-
-/**
- * The bit extracted still stays in given _pos, not at lowest bit
- */
-// Bits extractBit( Bits _attribute, int _pos )
-// {
-// 	return ( _attribute & ( 1 << _pos ) );
-// }
-
-/**
- * In order to save time by avoiding assigning hash each time extract a bit
- * Use pointer/reference
- */
-// void pushBit( Bits *target, int _val )
-// {
-// 	*target = *target | _val;
-// }
-
 void freeVals( char **_vals, int _nvals )
 {
 	for( int i = 0 ; i < _nvals ; i++ ) {
@@ -119,13 +90,13 @@ Bits tupleHash(Reln r, Tuple t)
 		hash = hash | ( extracted_bit << i );
 	}
 
-	// for( int i = 0 ; i < nvals ; i++ ){
-	// 	bitsString(hashes[i],buf);
-	// 	printf("hash(%s) = %s\n", vals[i], buf);
-	// }
-
 	bitsString(hash,buf);
-	printf("hash(%s) = %s\n", t, buf);
+
+	/**
+	 * Attention, remove printf()
+	 */ 
+	// printf("hash(%s) = %s\n", t, buf);
+
 	freeVals( vals, nvals );
 	return hash;
 }
@@ -143,10 +114,12 @@ Bool tupleMatch(Reln r, Tuple t1, Tuple t2)
 	int i;
 	for (i = 0; i < na; i++) {
 		// assumes no real attribute values start with '?'
+
 		/**
 		 * Attention, assert need to be deleted 
 		 */
 		assert( v2[i][0] != '?' );
+		
 		if (v1[i][0] == '?' || v2[i][0] == '?') continue;
 		if (strcmp(v1[i],v2[i]) == 0) continue;
 		match = FALSE;
