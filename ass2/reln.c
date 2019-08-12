@@ -189,10 +189,6 @@ void collectEmptyPage( Reln _r )
 		Page curr_ov_page = getPage( _r->ovflow, curr_ov_pageID );
 		if( pageNTuples( curr_ov_page ) == 0 ) {
 			PageID temp_son_node_of_deleted_node = pageOvflow( curr_ov_page );
-			/**
-			 * Attention, debug
-			 */
-			checkPgeAssert( curr_ov_page );
 
 			// free( curr_ov_page );
 			deleteNodeFatherIsMain( _r->data, _r->ovflow, father_PID, curr_ov_pageID );
@@ -258,7 +254,6 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 
 	// no tuple at this page(main/overflow)
 	if( how_many_tuples_curr_page == 0 ) {
-		assert( *(initial) == '\0' );
 		free( curr_page );
 		return;
 	}
@@ -267,25 +262,18 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 	char *end = NULL;
 	char *last_end = NULL;
 	char **backup = calloc( how_many_tuples_curr_page, sizeof( char * ) );
+	// check if calloc fails
 	assert( backup != NULL );
 	// for current page, extract all tuples and store
 	for( int i = 0 ; i < ( PAGESIZE - hdr_size ) ; i++ ) {
 		// most possible situation, reading a tuple
 											//		&& end == NULl // Attention
 		if( *(initial + i) != '\0' && start != NULL ) {
-			/**
-			 * Attention : These asserts can be deleted to increase speed
-			 */
-			assert( end == NULL );
 			continue;
 		}
 
 		// start of a tuple
 		if( *(initial + i) != '\0' && start == NULL ) {
-			/**
-			 * Attention : These asserts can be deleted to increase speed
-			 */
-			assert( end == NULL );
 			start = initial + i;
 			continue;
 		}
@@ -307,18 +295,11 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 		// last possible, the previous tuple is the last tuple
 		// Thic condition can be satisfied 
 		// because if no tuple at all, then this for loop should never happen
-		assert( last_end != NULL );
 		if( *(initial + i) == '\0' &&  start == NULL && ( initial + i ) == last_end + 1 ) {
-			/**
-			 * Attention : These asserts can be deleted to increase speed
-			 */
-			assert( end == NULL );
 			break;
 		}
 
 	}
-	// Attention
-	assert( existing_scanned_tuples_num == how_many_tuples_curr_page );
 	// after store
 	// reset this page's 3 members, the last one data[1] should be same
 	// reset the tuple parts
@@ -412,11 +393,6 @@ PageID addToRelation(Reln r, Tuple t)
 
 	Page pg = getPage(r->data,p);
 	if (addToPage(pg,t) == OK) {
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( pg );
-
 		putPage(r->data,p,pg);
 		r->ntups++;
 		return p;
@@ -426,17 +402,10 @@ PageID addToRelation(Reln r, Tuple t)
 	// no overflow page
 	if (pageOvflow(pg) == NO_PAGE) {
 		// add first overflow page in chain
-
 		// create a new overflow page 
 		PageID newp = addNewoverflowPage(r->ovflow, r);
 		// set this page as overflow page of existing primary page(pg)
 		pageSetOvflow(pg,newp);
-
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( pg );
-
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
 		// can't add to a new overflow page; we have a problem
@@ -444,11 +413,6 @@ PageID addToRelation(Reln r, Tuple t)
 			free( newpg );
 			return NO_PAGE;
 		}
-
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( newpg );
 
 		putPage(r->ovflow,newp,newpg);
 		r->ntups++;
@@ -475,11 +439,6 @@ PageID addToRelation(Reln r, Tuple t)
 				if (prevpg != NULL) free(prevpg);
 
 				// putPage() help us free "ovpg"
-				/**
-				 * Attention, debug
-				 */
-				checkPgeAssert( ovpg );
-
 				putPage(r->ovflow,ovp,ovpg);
 				r->ntups++;
 				free( pg );
@@ -494,21 +453,9 @@ PageID addToRelation(Reln r, Tuple t)
 		// insert tuple into new page
 		Page newpg = getPage(r->ovflow,newp);
         if (addToPage(newpg,t) != OK) return NO_PAGE;
-
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( newpg );
-		
         putPage(r->ovflow,newp,newpg);
 		// link to existing overflow chain
-		pageSetOvflow(prevpg,newp);
-
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( prevpg );
-		
+		pageSetOvflow(prevpg,newp);	
 		putPage(r->ovflow,prevp,prevpg);
         r->ntups++;
 		free( pg );
@@ -527,12 +474,6 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 
 	Page pg = getPage(r->data,p);
 	if (addToPage(pg,t) == OK) {
-
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( pg );
-		
 		putPage(r->data,p,pg);
 		r->ntups++;
 		return p;
@@ -543,18 +484,11 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 	 */
 	if (pageOvflow(pg) == NO_PAGE) {
 		// add first overflow page in chain
-
 		// create a new overflow page 
 		PageID newp = addNewoverflowPage(r->ovflow, r);
 		// set this page as overflow page of existing primary page(pg)
 		pageSetOvflow(pg,newp);
 		// this putPage() is basically writing only one new info which is page->ovflow
-		
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( pg );
-
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
 		// can't add to a new overflow page; we have a problem
@@ -562,12 +496,6 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 			free( newpg );
 			return NO_PAGE;
 		} 
-
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( newpg );
-		
 		putPage(r->ovflow,newp,newpg);
 		r->ntups++;
 		return p;
@@ -590,13 +518,7 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 				ovp = pageOvflow(ovpg);
 			}
 			else {
-				if (prevpg != NULL) free(prevpg);
-
-				/**
-				 * Attention, debug
-				 */
-				checkPgeAssert( ovpg );
-				
+				if (prevpg != NULL) free(prevpg);			
 				putPage(r->ovflow,ovp,ovpg);
 				r->ntups++;
 				free( pg) ;
@@ -612,19 +534,9 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		Page newpg = getPage(r->ovflow,newp);
         if (addToPage(newpg,t) != OK) return NO_PAGE;
 
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( newpg );
-		
         putPage(r->ovflow,newp,newpg);
 		// link to existing overflow chain
 		pageSetOvflow(prevpg,newp);
-
-		/**
-		 * Attention, debug
-		 */
-		checkPgeAssert( prevpg );
 		
 		putPage(r->ovflow,prevp,prevpg);
         r->ntups++;
@@ -703,13 +615,6 @@ PageID Tail_empty_page( Reln _r )
 		// else it is the tail page
 		else
 		{
-
-			/**
-			 * Attention : assert can be deleted
-			 */
-			assert( pageNTuples(curr_ov_page) == 0 );
-			assert( pageFreeSpace(curr_ov_page) == 1012 );
-
 			free( curr_ov_page );
 			break;
 		}
@@ -738,13 +643,7 @@ void Remove_Empty_pid( Reln _r, PageID _which_one )
 			temp_ov_pid = pageOvflow( curr_ov_page );
 		}
 		else{
-			UnlinkTailEmptyPage( curr_ov_page );
-
-			/**
-			 * Attention, debug
-			 */
-			checkPgeAssert( curr_ov_page );
-			
+			UnlinkTailEmptyPage( curr_ov_page );		
 			putPage( _r->ovflow, temp_ov_pid, curr_ov_page );
 			// because putPage() already free(), so no need to free again
 			// free( curr_ov_page );
@@ -770,13 +669,7 @@ void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
 		// check if curr_page has child node, if not, this is the tail page
 		if( pageOvflow( curr_page ) == NO_PAGE ) {
 			// link new empty ov page to "curr_page", curr_page must be in file overflow
-			// need to putpage(), linkNewFreeOvPage() does putpage()
-
-			/**
-			 * Attention, debug
-			 */
-			checkPgeAssert( curr_page );
-			
+			// need to putpage(), linkNewFreeOvPage() does putpage()	
 			linkNewFreeOvPage( _r->ovflow, curr_pageID, curr_page, _empty_Page_pid);
 			// because linkNewFreeOvPage() has putpage(), so it does free() already
 			// free(curr_page);
@@ -785,14 +678,7 @@ void StoreEmptyOvPage( Reln _r, PageID _empty_Page_pid )
 		curr_pageID = pageOvflow( curr_page );
 		free(curr_page);
 	}
-	
-	/**
-	 * Attention, this assert can be deleted
-	 */
-	Page check_page = getPage( _r->ovflow, curr_pageID ); // page before last one
-	assert( pageOvflow(check_page) == _empty_Page_pid );
-	free(check_page);
-
+	return;
 }
 
 void freeBackup( char **backup, int how_many_tuples ) {
@@ -816,139 +702,4 @@ void BackTuple( char **backup, int how_many_existing_tuples, char *start, char *
 		offset = offset + 1;
 	}
 	backup[ how_many_existing_tuples ] = temp;
-}
-
-Count ReadTupleFromPage( Reln _r, char *_Data_part ) 
-{
-	const Count hdr_size = 2*sizeof(Offset) + sizeof(Count); // make it const
-	Count existing_scanned_tuples_num = 0;
-	char * const initial = _Data_part;
-
-	char *start = NULL;
-	char *end = NULL;
-	char *last_end = NULL;
-	// for current page, extract all tuples and store
-	for( int i = 0 ; i < ( PAGESIZE - hdr_size ) ; i++ ) {
-		// most possible situation, reading a tuple
-											//		&& end == NULl // Attention
-		if( *(initial + i) != '\0' && start != NULL ) {
-
-			/**
-			 * Attention : These asserts can be deleted to increase speed
-			 */
-			assert( end == NULL );
-
-			continue;
-		}
-
-		// start of a tuple
-		if( *(initial + i) != '\0' && start == NULL ) {
-
-			/**
-			 * Attention : These asserts can be deleted to increase speed
-			 */
-			assert( end == NULL );
-
-			start = initial + i;
-			continue;
-		}
-
-		// end of a tuple					//		&& end == NULl // Attention
-		if( *(initial + i) == '\0' && start != NULL ) {
-			end = initial + i;
-			// store this tuple	into backup
-			// PrintOneTuple( _r, start, end );
-			// count tuple nums by + 1
-			existing_scanned_tuples_num++;
-			// after store finished, reset
-			last_end = end;
-			start = NULL;
-			end = NULL;
-			continue;
-		}
-
-		// last possible, the previous tuple is the last tuple
-		// Thic condition can be satisfied 
-		// because if no tuple at all, then this for loop should never happen
-		assert( last_end != NULL );
-		if( *(initial + i) == '\0' &&  start == NULL && ( initial + i ) == last_end + 1 ) {
-
-			break;
-		}
-
-	}
-	return existing_scanned_tuples_num;
-}
-
-/**
- * Debug function, delete
- */ 
-void Display( Reln _r )
-{
-	// go through all main pages
-	for( int i = 0 ; i < _r->npages ; i++ ) {
-		printf( "cur main page id is %d\n", i );
-		
-		Page curr_main_page = getPage( _r->data, i );
-		Count how_many_tuples_curr_page = pageNTuples( curr_main_page );
-
-		char * const initial = pageData( curr_main_page );
-		if( pageNTuples( curr_main_page ) != 0 ) {
-			Count result = ReadTupleFromPage( _r, initial );
-			assert( result == how_many_tuples_curr_page );
-		}
-		else {
-			printf("No tuple at this page\n");
-		}
-
-		checkPgeAssert( curr_main_page );
-		PageID ovPage = pageOvflow( curr_main_page ) ;
-		free(curr_main_page);
-
-		for( ; ovPage != NO_PAGE ;  ) {
-			printf( "cur overflow page is %d attached to %d\n", ovPage , i );
-			Page temp_ov_page = getPage( _r->ovflow, ovPage );
-
-			Count temp_how_many_tuples_curr_page = pageNTuples( temp_ov_page );
-			char * const temp_init = pageData( temp_ov_page );
-
-			if( pageNTuples( temp_ov_page ) != 0 ) {
-				Count temp_result = ReadTupleFromPage( _r, temp_init );
-				if( temp_how_many_tuples_curr_page != temp_result ) {
-					printf("first is %d, second is %d\n", temp_how_many_tuples_curr_page, temp_result);
-				}	
-				assert( temp_how_many_tuples_curr_page == temp_result );
-			}
-			else {
-				printf("No tuple at this page\n");
-			}
-			checkPgeAssert( temp_ov_page );
-			ovPage = pageOvflow( temp_ov_page );
-			free(temp_ov_page);
-		}
-	}
-}
-
-/**
- * Debug function, delete
- */ 
-void DisplayOvPageInfo( Reln _r )
-{
-	if( _r->first_empty_page == NO_PAGE ) {
-		printf("There is no free overflow page\n");
-	}
-	else{
-		PageID currPID = _r->first_empty_page;
-		printf("ov id is %d ", currPID );
-		Page curr_page = getPage( _r->ovflow, currPID );
-		currPID = pageOvflow( curr_page );
-		free(curr_page);
-		for( ; currPID != NO_PAGE ; ) {
-			printf(" -> ov id is %d ", currPID );
-			Page temp_curr_page = getPage( _r->ovflow, currPID );
-			currPID = pageOvflow( temp_curr_page );
-			free(temp_curr_page);
-		}
-	}
-	printf("\n");
 }

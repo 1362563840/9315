@@ -33,10 +33,6 @@ PageID Tail_empty_page( Reln _r );
 
 void Remove_Empty_pid(  Reln _r, PageID _which_one );
 
-void Display( Reln _r );
-
-void DisplayOvPageInfo( Reln _r );
-
 int int_pow(int base, int exp);
 
 #endif
