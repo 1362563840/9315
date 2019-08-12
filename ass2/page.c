@@ -84,7 +84,6 @@ PageID addNewoverflowPage(FILE *_f, Reln _r)
 		// then there is one empty ov page
 		// use it, and remove it from empty page list
 		Remove_Empty_pid( _r, temp_pid );
-		printf("special called free ov page %d\n", temp_pid);
 		return temp_pid;
 	}
 
@@ -95,10 +94,7 @@ PageID addNewoverflowPage(FILE *_f, Reln _r)
 	assert(pos >= 0);
 	PageID pid = pos/PAGESIZE;
 	Page p = newPage();
-	/**
-	 * Attention : debug
-	 */
-	printf("1\n");
+	// Attention
 	checkPgeAssert( p );
 	ok = putPage(_f, pid, p);
 	assert(ok == 0);
@@ -167,28 +163,6 @@ Status addToPage(Page p, Tuple t)
 	return OK;
 }
 
-/**
- * TODO
- * 
- * 
- * Difference between split verions and non split verion is that
- * if this tuple still belongs to old page, then do nothing
- */
-Status addToPageSplitVersion(Page p, Tuple t)
-{
-	int n = tupLength(t);
-	char *c = p->data + p->free;
-	Count hdr_size = 2*sizeof(Offset) + sizeof(Count);
-	// doesn't fit ... return fail code
-	// assume caller will put it elsewhere
-	if (c+n > &p->data[PAGESIZE-hdr_size-2]) return -1;
-	strcpy(c, t);
-	p->free += n+1;
-	p->ntuples++;
-	return OK;
-}
-
-
 // extract page info
 char *pageData(Page p) { return p->data; }
 Count pageNTuples(Page p) { return p->ntuples; }
@@ -198,7 +172,6 @@ Count pageFreeSpace(Page p) {
 	Count hdr_size = 2*sizeof(Offset) + sizeof(Count);
 	return (PAGESIZE-hdr_size-p->free);
 }
-
 
 void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 {
@@ -212,9 +185,8 @@ void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 	/**
 	 * Attention : debug
 	 */
-	printf("2\n");
 	checkPgeAssert( _which_page );
-	printf("2----------------------\n");
+
 	putPage( _handler, _pid, _which_page );
 }
 
@@ -231,9 +203,8 @@ void linkNewFreeOvPage(FILE * _handler, PageID _father_pid, Page _father_page, P
 	/**
 	 * Attention : debug
 	 */
-	printf("3\n");
 	checkPgeAssert( _father_page );
-	printf("3-----------------\n");
+
 	putPage( _handler, _father_pid, _father_page );
 }
 
@@ -276,16 +247,12 @@ void deleteNode( FILE * _handler, PageID _fatherPID, PageID _deletedPID )
 	/**
 	 * Attention : debug
 	 */
-	printf("4\n");
 	checkPgeAssert( fatherPage );
 	checkPgeAssert( sonPage );
-	printf("4---------------\n");
 	putPage( _handler, _fatherPID, fatherPage );
 	putPage( _handler, _deletedPID, sonPage );
 	
-	/**
-	 * Because putPage() above use free();
-	 */
+	// Because putPage() above use free();
 	// free(fatherPage);
 	// free(sonPage);
 }
@@ -316,16 +283,13 @@ void deleteNodeFatherIsMain( FILE * _father_handler, FILE * _son_handler, PageID
 	/**
 	 * Attention : debug
 	 */
-	printf("5\n");
 	checkPgeAssert( fatherPage );
 	checkPgeAssert( sonPage );
-	printf("5-----------------------\n");
+
 	putPage( _father_handler, _fatherPID, fatherPage );
 	putPage( _son_handler, _deletedPID, sonPage );
 	
-	/**
-	 * Because putPage() above use free();
-	 */
+	// Because putPage() above use free();
 	// free(fatherPage);
 	// free(sonPage);
 }

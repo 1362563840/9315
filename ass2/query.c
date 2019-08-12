@@ -26,7 +26,6 @@ struct QueryRep {
 	PageID  curOvPage;	
 	int     is_ovflow; // are we in the overflow pages?
 	Offset  curtup;    // offset of current tuple within page
-	//TODO
 
 	int  int_depth;		// depth (constant)
 	char *str_query;	// query (constant)
@@ -55,14 +54,6 @@ Query startQuery(Reln r, char *q)
 {
 	Query new = malloc(sizeof(struct QueryRep));
 	assert(new != NULL);
-	// TODO
-	// Partial algorithm:
-	// form known bits from known attributes
-	// form unknown bits from '?' attributes
-	// compute PageID of first page
-	//   using known bits and first "unknown" value
-	// set all values in QueryRep object
-
 
 	// check the validity of query first
 	if (!queryIsValid(r, q)) {
@@ -83,7 +74,7 @@ Query startQuery(Reln r, char *q)
 	// initilize some variables
 	Bits hash_value_array[nvals], the_known = 0x00000000, temp_pos = 0x00000000;
 	ChVecItem *cv = chvec(r);
-	ChVecItem curr_cv;// curr_cv = cv[i]
+	ChVecItem curr_cv;	// curr_cv = cv[i]
 	int the_depth = depth(r);
 
 	int i;
@@ -101,16 +92,6 @@ Query startQuery(Reln r, char *q)
 		temp_pos = (strcmp(vals[curr_cv.att], "?") != 0) ? temp_pos | (1 << i) : temp_pos;
 	}
 	void bitsString(Bits val, char *buf);
-	// char *temp1 = malloc( sizeof(char) * MAXCHVEC );
-	// char *temp2 = malloc( sizeof(char) * MAXCHVEC );
-	// bitsString( the_known, temp1 );
-	// bitsString( temp_pos, temp2 );
-	// printf(">>>%s\n",temp1);
-	// printf(">>>%s\n",temp2);
-	// get the_curpage
-	// for (i = 0; i < the_depth; i++) {
-	// 	the_curpage = (bitIsSet(the_known, i)) ? setBit(the_curpage, i) : unsetBit(the_curpage, i);
-	// }
 
 	// assign value to elements in structure 'QueryRep'
 	new -> rel        =  r;
@@ -162,7 +143,6 @@ Tuple getNextTuple(Query q)
 	char *last_end = NULL;
 	char *curr = start;
 	for( ; ; ) {
-
 		if( *curr != '\0' && start != NULL ) {
 			q->curtup++;
 			curr = curr + 1;
@@ -183,6 +163,7 @@ Tuple getNextTuple(Query q)
 
 		// a tuple ends
 		if( *curr == '\0' && start != NULL && curr != initial ) {
+			// Attention
 			assert( end == NULL );
 			q->curtup++;
 			end = curr;
@@ -190,6 +171,7 @@ Tuple getNextTuple(Query q)
 			Bool matchResult = tupleMatch( q->rel, q->str_query, resultTuple );
 			// if matches
 			if( matchResult == TRUE ) {
+				free(current_page);
 				return resultTuple;
 			}
 			start = NULL;
@@ -211,6 +193,8 @@ Tuple getNextTuple(Query q)
 			assert( end == NULL );
 			Bool temp_result = moveToNextPage( q, current_page );
 			if( temp_result == FALSE ){
+				// moveToNextPage() help us free(current_page)
+				// free(current_page);
 				break;
 			}
 			initial = q->str_data;
@@ -235,6 +219,8 @@ Tuple getNextTuple(Query q)
 		if( *curr == '\0' && last_end + 1 == curr ) {
 			Bool temp_result = moveToNextPage( q, current_page );
 			if( temp_result == FALSE ){
+				// moveToNextPage() help us free(current_page)
+				// free(current_page);
 				break;
 			}
 			initial = q->str_data;
@@ -279,8 +265,9 @@ Bool moveToNextPage( Query _q, Page _current_page )
 		}
 		else{
 			_q->curMainPage++;
+			// Attention
 			assert( _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) );
-			for( ; _q->curMainPage < int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ; _q->curMainPage++ ){
+			for( ; _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ; _q->curMainPage++ ){
 				/**
 				 * check if new _q->curMainPage is valid for known bits
 				 * 1. _q->curMainPage < _q->rel->sp, take depth + 1 bits
@@ -310,13 +297,16 @@ Bool moveToNextPage( Query _q, Page _current_page )
 					break;
 				}
 				/**
-				 * Attention, delete assert
+				 * Attention, do not delete, if programs run here, then it means 
 		 		*/ 
 				assert( 1 == 0 );
 				// _q->curMainPage++;
 			}
-			assert( _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) );
-			if( _q->curMainPage == int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ) {
+			// Attention, delete
+			assert( _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ||
+					_q->curMainPage == int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) + 1 );
+			if( _q->curMainPage > int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ) {
+				free(_current_page);
 				return FALSE;
 			}
 			_q->curOvPage = NO_PAGE;
@@ -369,9 +359,5 @@ Bool checkValidHashBit( PageID _currMainPageID, int _how_many_bits, Bits _known,
 // clean up a QueryRep object and associated data
 void closeQuery(Query q)
 {
-	// TODO
-
-	// struct 'q' has allocated memory using 'malloc'
-	// thus, free 'q'
 	free(q);
 }

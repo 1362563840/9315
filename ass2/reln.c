@@ -180,9 +180,8 @@ void collectEmptyPage( Reln _r )
 	PageID father_PID = _r->sp;
 	PageID curr_ov_pageID = pageOvflow( main_page );
 	free(main_page);
-	// TODO
 	// before go to next loop, if the page after main page is empty ov page, then need to adjust file handler
-	
+
 	/**
 	 * before go to next loop, if the father_page is stll main page, then need to adjust file handler
 	 */
@@ -193,41 +192,22 @@ void collectEmptyPage( Reln _r )
 			/**
 			 * Attention, debug
 			 */
-			printf("test\n");
-			printf("this ov id is %d\n", curr_ov_pageID);
-			displayPage(curr_ov_page);
 			checkPgeAssert( curr_ov_page );
-			printf("test-----------------------\n");
-			// free( curr_ov_page );
 
+			// free( curr_ov_page );
 			deleteNodeFatherIsMain( _r->data, _r->ovflow, father_PID, curr_ov_pageID );
 
-			/**
-			 * Attention, debug
-			 */
-			printf("test1\n");
-			printf("this ov id is %d\n", curr_ov_pageID);
-			displayPage(curr_ov_page);
-			checkPgeAssert( curr_ov_page );
-			printf("test1-----------------------\n");
-			// free( curr_ov_page );
 			StoreEmptyOvPage( _r, curr_ov_pageID );
-			/**
-			 * Attention
-			 */
+
 			free( curr_ov_page );
 			curr_ov_pageID = temp_son_node_of_deleted_node;
 			continue;
 		}
 
-		// TODO
 		father_PID = curr_ov_pageID;
 		curr_ov_pageID = pageOvflow( curr_ov_page );
 		free( curr_ov_page );
-		/**
-		 * Attention debug printf(), need to delete
-		 */
-		printf("through break\n");
+
 		break;
 	}
 
@@ -246,7 +226,7 @@ void collectEmptyPage( Reln _r )
 			father_PID = father_PID; // this line actually does nothing
 			PageID temp_son_node_of_deleted_node = pageOvflow( curr_ov_page );
 			free( curr_ov_page );
-			// Attention
+
 			deleteNode( _r->ovflow, father_PID, curr_ov_pageID );
 			// after delted, need to store this empty ov page info to _r->first_empty_page
 			StoreEmptyOvPage( _r, curr_ov_pageID );
@@ -288,7 +268,6 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 	char *last_end = NULL;
 	char **backup = calloc( how_many_tuples_curr_page, sizeof( char * ) );
 	assert( backup != NULL );
-	// char **backup = malloc( sizeof( char * ) * how_many_tuples_curr_page );
 	// for current page, extract all tuples and store
 	for( int i = 0 ; i < ( PAGESIZE - hdr_size ) ; i++ ) {
 		// most possible situation, reading a tuple
@@ -338,15 +317,7 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 		}
 
 	}
-	// debug ----------------------
-	if( existing_scanned_tuples_num != how_many_tuples_curr_page ) {
-		printf("recorded number is %d, while real scanned number is %d\n", how_many_tuples_curr_page, existing_scanned_tuples_num);
-
-		for( int i = 0 ; i < existing_scanned_tuples_num ; i++ ) {
-			printf("%s\n", backup[i]);
-		}
-	}
-	// debug ----------------------
+	// Attention
 	assert( existing_scanned_tuples_num == how_many_tuples_curr_page );
 	// after store
 	// reset this page's 3 members, the last one data[1] should be same
@@ -360,13 +331,9 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 	}
 	// free char **backup, curr_page
 	freeBackup( backup, existing_scanned_tuples_num );
-	/**
-	 * Attention 
-	 * 
-	 * in resetPageInfo(), it calls putPage(), putPage() will call free()
-	 */
-	// free( curr_page );
 
+	// in resetPageInfo(), it calls putPage(), putPage() will call free()
+	// free( curr_page );
 	return;
 }
 
@@ -381,17 +348,6 @@ void SplitPage( Reln _r )
 	// create a new main page
 	PageID newPid = addPage( _r->data );	
 	_r->npages++;
-	
-	/**
-	 * Attention, test assert, can be deleted
-	 */
-	// test if pid is same as theory;
-	Offset temp = _r->sp | ( 1 << _r->depth );
-	if( newPid != temp ){
-		printf( "newPid is %u, _r->sp is %u, _r->depth is %u, and temp is %u\n",
-						newPid,			_r->sp,		_r->depth,		temp	 );
-		assert( newPid == temp );
-	}
 
 	// first, go main page with _r->data as handler
 	PageID main_page_id = _r->sp;
@@ -419,7 +375,6 @@ void SplitPage( Reln _r )
 
 	// after split, reset sp, depth
 	if( _r->sp == ( int_pow( 2, _r->depth ) - 1 ) ){
-		printf( "the sp pow is %d\n", int_pow( 2, _r->depth ) );
 		_r->sp = 0;
 		_r->depth = _r->depth + 1;
 	}
@@ -438,20 +393,15 @@ void SplitPage( Reln _r )
 // - index always refers to a primary data page
 // - the actual insertion page may be either a data page or an overflow page
 // returns NO_PAGE if insert fails completely
-// TODO: include splitting and file expansion
 
 PageID addToRelation(Reln r, Tuple t)
 {
-	// int C = 1024/(10*r->nattrs) ;
-	const int C = 60;
+	int C = 1024/(10*r->nattrs) ;
 	if( r->ntups % C == 0 && r->ntups != 0 ) {
-		printf("Splited\n");
 		SplitPage( r );
-		printf("Splited finished\n");
 	}
 
 	Bits h, p;
-	// char buf[MAXBITS+1];
 	h = tupleHash(r,t);
 	if (r->depth == 0)
 		p = 1;
@@ -459,24 +409,21 @@ PageID addToRelation(Reln r, Tuple t)
 		p = getLower(h, r->depth);
 		if (p < r->sp) p = getLower(h, r->depth+1);
 	}
-	// bitsString(h,buf); printf("hash = %s\n",buf);
-	// bitsString(p,buf); printf("page = %s\n",buf);
+
 	Page pg = getPage(r->data,p);
 	if (addToPage(pg,t) == OK) {
 		/**
 		 * Attention, debug
 		 */
-		printf("7\n");
 		checkPgeAssert( pg );
-		printf("7-----------------------\n");
+
 		putPage(r->data,p,pg);
 		r->ntups++;
 		return p;
 	}
+
 	// primary data page full
-	/**
-	 * no overflow page
-	 */
+	// no overflow page
 	if (pageOvflow(pg) == NO_PAGE) {
 		// add first overflow page in chain
 
@@ -484,12 +431,12 @@ PageID addToRelation(Reln r, Tuple t)
 		PageID newp = addNewoverflowPage(r->ovflow, r);
 		// set this page as overflow page of existing primary page(pg)
 		pageSetOvflow(pg,newp);
+
 		/**
 		 * Attention, debug
 		 */
-		printf("8\n");
 		checkPgeAssert( pg );
-		printf("8-----------------------\n");
+
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
 		// can't add to a new overflow page; we have a problem
@@ -497,12 +444,12 @@ PageID addToRelation(Reln r, Tuple t)
 			free( newpg );
 			return NO_PAGE;
 		}
+
 		/**
 		 * Attention, debug
 		 */
-		printf("9\n");
 		checkPgeAssert( newpg );
-		printf("9-----------------------\n");
+
 		putPage(r->ovflow,newp,newpg);
 		r->ntups++;
 		return p;
@@ -526,13 +473,13 @@ PageID addToRelation(Reln r, Tuple t)
 			}
 			else {
 				if (prevpg != NULL) free(prevpg);
+
 				// putPage() help us free "ovpg"
 				/**
 				 * Attention, debug
 				 */
-				printf("10\n");
 				checkPgeAssert( ovpg );
-				printf("10-----------------------\n");
+
 				putPage(r->ovflow,ovp,ovpg);
 				r->ntups++;
 				free( pg );
@@ -547,21 +494,21 @@ PageID addToRelation(Reln r, Tuple t)
 		// insert tuple into new page
 		Page newpg = getPage(r->ovflow,newp);
         if (addToPage(newpg,t) != OK) return NO_PAGE;
+
 		/**
 		 * Attention, debug
 		 */
-		printf("11\n");
 		checkPgeAssert( newpg );
-		printf("11-----------------------\n");
+		
         putPage(r->ovflow,newp,newpg);
 		// link to existing overflow chain
 		pageSetOvflow(prevpg,newp);
+
 		/**
 		 * Attention, debug
 		 */
-		printf("12\n");
 		checkPgeAssert( prevpg );
-		printf("12-----------------------\n");
+		
 		putPage(r->ovflow,prevp,prevpg);
         r->ntups++;
 		free( pg );
@@ -574,20 +521,18 @@ PageID addToRelation(Reln r, Tuple t)
 PageID addToRelationSplitVersion(Reln r, Tuple t)
 {
 	Bits h, p;
-	// char buf[MAXBITS+1];
 	h = tupleHash(r,t);
 	p = getLower(h, r->depth+1);
 
-	// bitsString(h,buf); printf("hash = %s\n",buf);
-	// bitsString(p,buf); printf("page = %s\n",buf);
+
 	Page pg = getPage(r->data,p);
 	if (addToPage(pg,t) == OK) {
+
 		/**
 		 * Attention, debug
 		 */
-		printf("13\n");
 		checkPgeAssert( pg );
-		printf("13-----------------------\n");
+		
 		putPage(r->data,p,pg);
 		r->ntups++;
 		return p;
@@ -604,12 +549,12 @@ PageID addToRelationSplitVersion(Reln r, Tuple t)
 		// set this page as overflow page of existing primary page(pg)
 		pageSetOvflow(pg,newp);
 		// this putPage() is basically writing only one new info which is page->ovflow
+		
 		/**
 		 * Attention, debug
 		 */
-		printf("14\n");
 		checkPgeAssert( pg );
-		printf("14-----------------------\n");
+		
 		putPage(r->data,p,pg);
 		Page newpg = getPage(r->ovflow,newp);
 		// can't add to a new overflow page; we have a problem
