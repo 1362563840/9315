@@ -64,22 +64,9 @@ PageID addPage(FILE *f)
 // append a new overflow Page to a file; return its PageID
 PageID addNewoverflowPage(FILE *_f, Reln _r)
 {
-	/**
-	 * Attention : assert can be deleted
-	 */
-	assert( ovflowFile( _r ) == _f );
 	// Before put a new Page, check if
 	PageID temp_pid = Tail_empty_page( _r );
-	/**
-	 * Attention : check can be deleted
-	 */
-	// ------------------------------------------------- do some check
-	if( temp_pid != NO_PAGE ) {
-		Page check_page = getPageCertainInfo( ovflowFile( _r ), temp_pid );
-		assert( pageOvflow( check_page ) == NO_PAGE );
-		free( check_page );
-	}
-	// ------------------------------------------------- do some check
+
 	if( temp_pid != NO_PAGE	) {
 		// then there is one empty ov page
 		// use it, and remove it from empty page list
@@ -94,8 +81,6 @@ PageID addNewoverflowPage(FILE *_f, Reln _r)
 	assert(pos >= 0);
 	PageID pid = pos/PAGESIZE;
 	Page p = newPage();
-	// Attention
-	checkPgeAssert( p );
 	ok = putPage(_f, pid, p);
 	assert(ok == 0);
 	return pid;
@@ -182,29 +167,13 @@ void resetPageInfo( FILE *_handler, PageID _pid, Page _which_page )
 	Count hdr_size = 2*sizeof(Offset) + sizeof(Count);
 	unsigned int dataSize = PAGESIZE - hdr_size;
 	memset(_which_page->data, '\0', dataSize);
-	/**
-	 * Attention : debug
-	 */
-	checkPgeAssert( _which_page );
 
 	putPage( _handler, _pid, _which_page );
 }
 
 void linkNewFreeOvPage(FILE * _handler, PageID _father_pid, Page _father_page, PageID _son_pid)
 {
-	/**
-	 * Attention, aseert can be deleted
-	 */
-	assert( _father_page->free == 0 );
-	assert( _father_page->ntuples == 0 );
-	assert( _father_page->ovflow == NO_PAGE );
 	_father_page->ovflow = _son_pid;
-	// putpage
-	/**
-	 * Attention : debug
-	 */
-	checkPgeAssert( _father_page );
-
 	putPage( _handler, _father_pid, _father_page );
 }
 
@@ -213,12 +182,6 @@ void linkNewFreeOvPage(FILE * _handler, PageID _father_pid, Page _father_page, P
  */
 void UnlinkTailEmptyPage(Page _page_before_tail_page)
 {
-	/**
-	 * Attention, aseert can be deleted
-	 */
-	assert( _page_before_tail_page->ovflow != NO_PAGE );
-	assert( _page_before_tail_page->free == 0 );
-	assert( _page_before_tail_page->ntuples == 0 );
 	_page_before_tail_page->ovflow = NO_PAGE;
 }
 
@@ -244,11 +207,6 @@ void deleteNode( FILE * _handler, PageID _fatherPID, PageID _deletedPID )
 	}
 	sonPage->ovflow = NO_PAGE;
 	// putpage
-	/**
-	 * Attention : debug
-	 */
-	checkPgeAssert( fatherPage );
-	checkPgeAssert( sonPage );
 	putPage( _handler, _fatherPID, fatherPage );
 	putPage( _handler, _deletedPID, sonPage );
 	
@@ -269,7 +227,6 @@ void deleteNodeFatherIsMain( FILE * _father_handler, FILE * _son_handler, PageID
 	// fatherPage should be main page
 	Page fatherPage = getPage( _father_handler, _fatherPID );
 	Page sonPage = getPage( _son_handler, _deletedPID );
-	assert( pageOvflow( fatherPage ) == _deletedPID );
 	// son does not have son which is grandson;
 	if( sonPage->ovflow == NO_PAGE ) {
 		fatherPage->ovflow = NO_PAGE;
@@ -279,12 +236,6 @@ void deleteNodeFatherIsMain( FILE * _father_handler, FILE * _son_handler, PageID
 		fatherPage->ovflow = sonPage->ovflow;
 	}
 	sonPage->ovflow = NO_PAGE;
-	// putpage
-	/**
-	 * Attention : debug
-	 */
-	checkPgeAssert( fatherPage );
-	checkPgeAssert( sonPage );
 
 	putPage( _father_handler, _fatherPID, fatherPage );
 	putPage( _son_handler, _deletedPID, sonPage );
@@ -292,28 +243,4 @@ void deleteNodeFatherIsMain( FILE * _father_handler, FILE * _son_handler, PageID
 	// Because putPage() above use free();
 	// free(fatherPage);
 	// free(sonPage);
-}
-
-/**
- * debug function
- */
-void checkPgeAssert( Page _page )
-{
-	Offset end = PAGESIZE - 2*sizeof(Offset) - sizeof(Count); // end == 1012
-	char *offset = _page->data + _page->free;
-	for( int i = 0 ; offset < _page->data + end ; i++ ) {
-		if( *offset != '\0' ) {
-			printf("the initial pos is %u, after %d offset, this char is %c\n", _page->free, i, *offset);
-			assert( 1 == 0 );
-		}
-		offset = offset + 1;
-	}
-}
-/**
- * debug function
- */
-void displayPage( Page _page )
-{
-	printf("Page's free space is %d, next node is %d, num of tuples is %d\n", 
-		_page->free,	_page->ovflow, _page->ntuples);
 }
