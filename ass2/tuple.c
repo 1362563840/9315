@@ -91,12 +91,6 @@ Bits tupleHash(Reln r, Tuple t)
 	}
 
 	bitsString(hash,buf);
-
-	/**
-	 * Attention, remove printf()
-	 */ 
-	// printf("hash(%s) = %s\n", t, buf);
-
 	freeVals( vals, nvals );
 	return hash;
 }
@@ -114,11 +108,6 @@ Bool tupleMatch(Reln r, Tuple t1, Tuple t2)
 	int i;
 	for (i = 0; i < na; i++) {
 		// assumes no real attribute values start with '?'
-
-		/**
-		 * Attention, assert need to be deleted 
-		 */
-		assert( v2[i][0] != '?' );
 		
 		if (v1[i][0] == '?' || v2[i][0] == '?') continue;
 		if (strcmp(v1[i],v2[i]) == 0) continue;
