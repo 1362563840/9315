@@ -346,7 +346,7 @@ void Store_And_insert_agian( FILE *_handler, PageID _pid, Reln _r )
 void SplitPage( Reln _r )
 {	
 	// create a new main page
-	PageID newPid = addPage( _r->data );	
+	addPage( _r->data );	
 	_r->npages++;
 
 	// first, go main page with _r->data as handler
