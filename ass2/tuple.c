@@ -89,8 +89,8 @@ Bits tupleHash(Reln r, Tuple t)
 		Bits extracted_bit =  ( ( hashes[ chvec(r)[i].att ] &  ( 1 <<  chvec(r)[i].bit ) ) >>  chvec(r)[i].bit ) ;
 		hash = hash | ( extracted_bit << i );
 	}
-
 	bitsString(hash,buf);
+	printf("hash(%s) = %s\n", t, buf);
 	freeVals( vals, nvals );
 	return hash;
 }
