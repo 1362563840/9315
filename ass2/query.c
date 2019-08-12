@@ -65,7 +65,7 @@ Query startQuery(Reln r, char *q)
 	Count nvals = nattrs(r);
 	// assign space of size 'nvals' to '**vals' (2D-array)
 	char **vals = malloc(nvals * sizeof(char *));
-	// assert (not necessary)
+	// assert check if malloc fails
 	assert(vals != NULL);
 	// extract values into a 2D-array of strings
 	// (char *q == Tuple t)
@@ -122,10 +122,6 @@ Tuple getNextTuple(Query q)
 		current_page = getPage(dataFile(q->rel), q->curMainPage);
 	}
 	else{
-		/**
-		 * Attention, delete assert
-		*/
-		assert(q->curOvPage != NO_PAGE);
 		current_page = getPage(ovflowFile(q->rel), q->curOvPage);
 	}
 
@@ -151,10 +147,6 @@ Tuple getNextTuple(Query q)
 		
 		// a new tuple start
 		if( *curr != '\0' && start == NULL ) {
-			/**
-			 * Attention, delete assert
-			*/ 
-			assert( last_end == curr - 1 );
 			q->curtup++;
 			start = curr;
 			curr = curr + 1;
@@ -163,8 +155,6 @@ Tuple getNextTuple(Query q)
 
 		// a tuple ends
 		if( *curr == '\0' && start != NULL && curr != initial ) {
-			// Attention
-			assert( end == NULL );
 			q->curtup++;
 			end = curr;
 			Tuple resultTuple = readtupleInQuery( start, end );
@@ -184,13 +174,6 @@ Tuple getNextTuple(Query q)
 		// this page no longer has tuples from current pos
 		// or no tuple at all
 		if( *curr == '\0' && curr == initial ) {
-			/**
-			 * Attention, delete assert
-			*/ 
-			assert( q->curtup == 0 || q->curtup + pageFreeSpace(current_page) + 12 == PAGESIZE );
-			assert( start == initial );
-			assert( last_end == NULL  );
-			assert( end == NULL );
 			Bool temp_result = moveToNextPage( q, current_page );
 			if( temp_result == FALSE ){
 				// moveToNextPage() help us free(current_page)
@@ -200,21 +183,9 @@ Tuple getNextTuple(Query q)
 			initial = q->str_data;
 			start = initial;
 			curr = start;
-			// last_end = NULL; // not necessary
-			/**
-			 * Attention, delete assert
-			*/ 
-			assert( q->curtup == 0 );
 			continue;
 		}
 
-		/**
-		 * Attention, delete assert
-		*/ 
-		assert( start == NULL );
-		assert( end == NULL );
-		assert( last_end != NULL );
-		assert( initial != curr );
 		// all tuples in current page is read
 		if( *curr == '\0' && last_end + 1 == curr ) {
 			Bool temp_result = moveToNextPage( q, current_page );
@@ -227,10 +198,6 @@ Tuple getNextTuple(Query q)
 			start = initial;
 			curr = start;
 			last_end = NULL;
-			/**
-			 * Attention, delete assert
-			*/ 
-			assert( q->curtup == 0 );
 			continue;
 		}
 		
@@ -265,8 +232,6 @@ Bool moveToNextPage( Query _q, Page _current_page )
 		}
 		else{
 			_q->curMainPage++;
-			// Attention
-			assert( _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) );
 			for( ; _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ; _q->curMainPage++ ){
 				/**
 				 * check if new _q->curMainPage is valid for known bits
@@ -300,11 +265,7 @@ Bool moveToNextPage( Query _q, Page _current_page )
 				 * Attention, do not delete, if programs run here, then it means 
 		 		*/ 
 				assert( 1 == 0 );
-				// _q->curMainPage++;
 			}
-			// Attention, delete
-			assert( _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ||
-					_q->curMainPage == int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) + 1 );
 			if( _q->curMainPage > int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ) {
 				free(_current_page);
 				return FALSE;
@@ -324,10 +285,6 @@ Bool moveToNextPage( Query _q, Page _current_page )
 
 char * readtupleInQuery( char * start, char * end )
 {
-	/**
-	 * Attention, delete assert
-	*/ 
-	assert(start < end);
 	char * result = malloc( sizeof( char ) * ( end - start + 1 ) );
 	if( result == NULL ) {
 		printf("not enough space for malloc\n");
