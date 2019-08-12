@@ -9,6 +9,7 @@
 typedef unsigned int Bits;
 
 int bitIsSet(Bits, int);
+int extractBit(Bits val, int position);
 Bits setBit(Bits, int);
 Bits unsetBit(Bits, int);
 Bits getLower(Bits, int);

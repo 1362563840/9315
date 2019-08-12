@@ -15,6 +15,18 @@ int bitIsSet(Bits val, int position)
 	return ((val & mask) != 0);
 }
 
+int extractBit(Bits val, int position)
+{
+	assert(0 <= position && position <= 31);
+	Bits mask = (1 << position);
+	if( (val & mask) != 0 ) {
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
 // set the bit at position to 1
 
 Bits setBit(Bits val, int position)

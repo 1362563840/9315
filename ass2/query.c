@@ -15,12 +15,13 @@
 
 Bool moveToNextPage( Query _q, Page _current_page );
 char * readtupleInQuery( char * start, char * end );
+Bool checkValidHashBit( PageID _currMainPageID, int _how_many_bits, Bits _known, Bits _known_pos );
 
 // A suggestion ... you can change however you like
 struct QueryRep {
 	Reln    rel;       // need to remember Relation info
 	Bits    known;     // the hash value from MAH
-	Bits    unknown;   // the unknown bits from MAH
+	Bits    known_pos;   // which pos is known
 	PageID  curMainPage;   // current main page in scan
 	PageID  curOvPage;	
 	int     is_ovflow; // are we in the overflow pages?
@@ -80,8 +81,9 @@ Query startQuery(Reln r, char *q)
 	tupleVals(q, vals);
 
 	// initilize some variables
-	Bits hash_value_array[nvals], the_known = 0x00000000, the_unknown = 0x00000000;
-	ChVecItem *cv = chvec(r), curr_cv;	// curr_cv = cv[i]
+	Bits hash_value_array[nvals], the_known = 0x00000000, temp_pos = 0x00000000;
+	ChVecItem *cv = chvec(r);
+	ChVecItem curr_cv;// curr_cv = cv[i]
 	int the_depth = depth(r);
 
 	int i;
@@ -94,11 +96,17 @@ Query startQuery(Reln r, char *q)
 	// get the_known and the_unknown
 	for (i = 0; i < MAXCHVEC; i++) {
 		curr_cv = cv[i];
-		the_known = (bitIsSet(hash_value_array[curr_cv.att], curr_cv.bit)) ? setBit(the_known, i) : unsetBit(the_known, i);
+		the_known = ( bitIsSet(hash_value_array[curr_cv.att], curr_cv.bit) ) ? setBit(the_known, i) : unsetBit(the_known, i);
 		// if vals[curr_cv.att] == "?", then bitwise left shift
-		the_unknown = (strcmp(vals[curr_cv.att], "?") == 0) ? the_unknown | (1 << i) : the_unknown;
+		temp_pos = (strcmp(vals[curr_cv.att], "?") != 0) ? temp_pos | (1 << i) : temp_pos;
 	}
-
+	void bitsString(Bits val, char *buf);
+	char *temp1 = malloc( sizeof(char) * MAXCHVEC );
+	char *temp2 = malloc( sizeof(char) * MAXCHVEC );
+	// bitsString( the_known, temp1 );
+	// bitsString( temp_pos, temp2 );
+	// printf(">>>%s\n",temp1);
+	// printf(">>>%s\n",temp2);
 	// get the_curpage
 	// for (i = 0; i < the_depth; i++) {
 	// 	the_curpage = (bitIsSet(the_known, i)) ? setBit(the_curpage, i) : unsetBit(the_curpage, i);
@@ -107,7 +115,7 @@ Query startQuery(Reln r, char *q)
 	// assign value to elements in structure 'QueryRep'
 	new -> rel        =  r;
 	new -> known      =  the_known;
-	new -> unknown    =  the_unknown;
+	new -> known_pos  =  temp_pos;
 	new -> curMainPage=  0; // possible bug
 	new -> curOvPage  =  NO_PAGE;
 	new -> is_ovflow  =  0;
@@ -271,6 +279,46 @@ Bool moveToNextPage( Query _q, Page _current_page )
 		}
 		else{
 			_q->curMainPage++;
+			assert( _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) );
+			for( ; _q->curMainPage < int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ; _q->curMainPage++ ){
+				/**
+				 * check if new _q->curMainPage is valid for known bits
+				 * 1. _q->curMainPage < _q->rel->sp, take depth + 1 bits
+				 * 2. _q->curMainPage >= _q->curMainPage && < 2^depth
+				 * 3. _q->curMainPage >= 2^depth && assert(_q->curMainPage < int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel))
+			 	*/ 
+				if( _q->curMainPage < _q->int_depth ) {
+					Bool temp_result = checkValidHashBit( _q->curMainPage, _q->int_depth + 1, _q->known, _q->known_pos );
+					if( temp_result == FALSE ) {
+						continue;
+					}
+					break;
+				}
+
+				if( _q->curMainPage >= _q->int_depth && _q->curMainPage < int_pow(2,_q->int_depth) ) {
+					Bool temp_result = checkValidHashBit( _q->curMainPage, _q->int_depth, _q->known, _q->known_pos );
+					if( temp_result == FALSE ) {
+						continue;
+					}
+					break;
+				}
+				if( _q->curMainPage >= int_pow(2,_q->int_depth) ) {
+					Bool temp_result = checkValidHashBit( _q->curMainPage, _q->int_depth + 1, _q->known, _q->known_pos );
+					if( temp_result == FALSE ) {
+						continue;
+					}
+					break;
+				}
+				/**
+				 * Attention, delete assert
+		 		*/ 
+				assert( 1 == 0 );
+				// _q->curMainPage++;
+			}
+			assert( _q->curMainPage <= int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) );
+			if( _q->curMainPage == int_pow( 2, _q->int_depth ) - 1 + splitp(_q->rel) ) {
+				return FALSE;
+			}
 			_q->curOvPage = NO_PAGE;
 			free(_current_page);
 			_current_page = getPage( dataFile(_q->rel), _q->curMainPage );
@@ -305,6 +353,18 @@ char * readtupleInQuery( char * start, char * end )
 	return result;
 }
 
+Bool checkValidHashBit( PageID _currMainPageID, int _how_many_bits, Bits _known, Bits _known_pos )
+{
+	for( int i = 0 ; i < _how_many_bits ; i++ ) {
+		// this pos is known
+		if( extractBit( _known_pos, i ) == 1 ) {
+			if( extractBit( _currMainPageID, i ) != extractBit( _known, i ) ) {
+				return FALSE;
+			}
+		}
+	}
+	return TRUE;
+}
 
 // clean up a QueryRep object and associated data
 void closeQuery(Query q)
