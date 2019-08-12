@@ -1,6 +1,7 @@
 file :  reln.h, reln.c is modified
         page.c page.h
         tuple.c tuple.h
+        bits.c bits.h
 
         Makefile
 
@@ -8,6 +9,10 @@ file :  reln.h, reln.c is modified
 
         query.c
         select.c
+
+not changed:
+    chevec.c chevec.h
+    hash.c hash.h
 
 
 aa,bb,cc ->     000 

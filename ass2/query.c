@@ -101,8 +101,8 @@ Query startQuery(Reln r, char *q)
 		temp_pos = (strcmp(vals[curr_cv.att], "?") != 0) ? temp_pos | (1 << i) : temp_pos;
 	}
 	void bitsString(Bits val, char *buf);
-	char *temp1 = malloc( sizeof(char) * MAXCHVEC );
-	char *temp2 = malloc( sizeof(char) * MAXCHVEC );
+	// char *temp1 = malloc( sizeof(char) * MAXCHVEC );
+	// char *temp2 = malloc( sizeof(char) * MAXCHVEC );
 	// bitsString( the_known, temp1 );
 	// bitsString( temp_pos, temp2 );
 	// printf(">>>%s\n",temp1);
